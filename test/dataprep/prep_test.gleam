@@ -95,7 +95,7 @@ pub fn replace_no_match_test() {
   let assert "hello" = prep.replace("-", "_")("hello")
 }
 
-pub fn replace_empty_target_test() {
+pub fn replace_absent_target_test() {
   let assert "hello" = prep.replace("x", "y")("hello")
 }
 

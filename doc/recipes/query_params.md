@@ -47,7 +47,7 @@ fn validate_query(raw: String) -> Validated(String, ParamError) {
 }
 
 fn validate_page(raw: String) -> Validated(Int, ParamError) {
-  parse_int(raw, "page")
+  parse_int(prep.trim()(raw), "page")
   |> validated.and_then(
     rules.min_int(1, TooSmall(1))
     |> validator.label("page", Param),
@@ -55,7 +55,7 @@ fn validate_page(raw: String) -> Validated(Int, ParamError) {
 }
 
 fn validate_per_page(raw: String) -> Validated(Int, ParamError) {
-  parse_int(raw, "per_page")
+  parse_int(prep.trim()(raw), "per_page")
   |> validated.and_then(
     rules.min_int(1, TooSmall(1))
     |> validator.both(rules.max_int(100, TooBig(100)))
