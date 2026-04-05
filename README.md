@@ -108,7 +108,9 @@ same-type validation. Parsing short-circuits; validation accumulates.
 ```gleam
 import dataprep/rules
 import dataprep/validated.{type Validated}
+import dataprep/validator
 import gleam/int
+import gleam/result
 
 pub type AgeError {
   NotAnInteger(raw: String)
@@ -208,7 +210,7 @@ pub fn validate_signup(
 //      ])
 ```
 
-See [doc/recipes/](doc/recipes/) for more examples.
+More examples are available in the [doc/recipes/](doc/recipes/) directory of the repository.
 
 ## Modules
 

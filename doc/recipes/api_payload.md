@@ -9,6 +9,7 @@ import dataprep/prep
 import dataprep/rules
 import dataprep/validated.{type Validated}
 import dataprep/validator
+import gleam/list
 import gleam/string
 
 pub type CreatePostRequest {
@@ -32,9 +33,9 @@ pub type ApiDetail {
 // --- Slug / UUID-like checks ---
 
 fn is_slug(s: String) -> Bool {
-  s
-  |> string.to_graphemes
-  |> list.all(fn(c) {
+  let chars = string.to_graphemes(s)
+  chars != []
+  && list.all(chars, fn(c) {
     c == "-" || { c >= "a" && c <= "z" } || { c >= "0" && c <= "9" }
   })
 }
@@ -61,11 +62,14 @@ fn validate_title(raw: String) -> Validated(String, ApiError) {
 fn validate_slug(raw: String) -> Validated(String, ApiError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
 
-  // Accept either a slug or a UUID
+  // non-empty guard, then accept either a slug or a UUID
   let check =
-    validator.predicate(is_slug, InvalidSlug)
-    |> validator.alt(validator.predicate(is_uuid_like, InvalidUuid))
-    |> validator.map_error(fn(_) { InvalidIdFormat })
+    rules.not_empty(Required)
+    |> validator.guard(
+      validator.predicate(is_slug, InvalidSlug)
+      |> validator.alt(validator.predicate(is_uuid_like, InvalidUuid))
+      |> validator.map_error(fn(_) { InvalidIdFormat }),
+    )
     |> validator.label("slug", Field)
 
   raw |> clean |> check

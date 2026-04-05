@@ -9,6 +9,7 @@ import dataprep/rules
 import dataprep/validated.{type Validated}
 import dataprep/validator
 import gleam/int
+import gleam/result
 
 pub type SearchQuery {
   SearchQuery(query: String, page: Int, per_page: Int)

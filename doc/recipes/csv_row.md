@@ -10,6 +10,7 @@ import dataprep/validated.{type Validated}
 import dataprep/validator
 import gleam/float
 import gleam/int
+import gleam/result
 
 pub type Product {
   Product(name: String, quantity: Int, price: Float)
