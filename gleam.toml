@@ -1,0 +1,13 @@
+name = "dataprep"
+version = "0.1.0"
+target = "erlang"
+description = "Composable, type-driven preprocessing and validation combinator library"
+licences = ["MIT"]
+repository = { type = "github", user = "nao1215", repo = "dataprep" }
+
+[dependencies]
+gleam_stdlib = ">= 0.44.0 and < 2.0.0"
+gleam_regexp = ">= 1.0.0 and < 2.0.0"
+
+[dev-dependencies]
+gleeunit = ">= 1.0.0 and < 2.0.0"
