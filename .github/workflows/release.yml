@@ -21,6 +21,6 @@ jobs:
       - run: gleam format --check
       - run: gleam build --warnings-as-errors
       - run: gleam test
-      - run: gleam publish -y
+      - run: echo 'I am not using semantic versioning' | gleam publish -y
         env:
           HEXPM_API_KEY: ${{ secrets.HEXPM_API_KEY }}
