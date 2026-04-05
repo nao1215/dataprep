@@ -1,16 +1,15 @@
 # Recipe: CSV Row Validation
 
 Validate a row of CSV data where all values arrive as strings.
-Demonstrates preprocessing, parsing, and multi-field accumulation.
+Uses `dataprep/parse` for type conversion and `validated.traverse_indexed`
+for batch row validation with row-level error context.
 
 ```gleam
+import dataprep/parse
 import dataprep/prep
 import dataprep/rules
 import dataprep/validated.{type Validated}
 import dataprep/validator
-import gleam/float
-import gleam/int
-import gleam/result
 
 pub type Product {
   Product(name: String, quantity: Int, price: Float)
@@ -20,28 +19,16 @@ pub type RowError {
   Cell(column: String, detail: CellDetail)
 }
 
+pub type BatchError {
+  Row(index: Int, detail: RowError)
+}
+
 pub type CellDetail {
   Empty
   TooLong(max: Int)
   NotAnInteger(raw: String)
   NotAFloat(raw: String)
   Negative
-}
-
-// --- Parse helpers ---
-
-fn parse_int(raw: String, col: String) -> Validated(Int, RowError) {
-  raw
-  |> int.parse
-  |> result.map_error(fn(_) { Cell(col, NotAnInteger(raw)) })
-  |> validated.from_result
-}
-
-fn parse_float(raw: String, col: String) -> Validated(Float, RowError) {
-  raw
-  |> float.parse
-  |> result.map_error(fn(_) { Cell(col, NotAFloat(raw)) })
-  |> validated.from_result
 }
 
 // --- Field processors ---
@@ -57,24 +44,24 @@ fn validate_name(raw: String) -> Validated(String, RowError) {
 }
 
 fn validate_quantity(raw: String) -> Validated(Int, RowError) {
-  let cleaned = prep.trim()(raw)
-  parse_int(cleaned, "quantity")
+  parse.int(prep.trim()(raw), NotAnInteger)
+  |> validated.map_error(fn(e) { Cell("quantity", e) })
   |> validated.and_then(
-    rules.min_int(0, Negative)
+    rules.non_negative_int(Negative)
     |> validator.label("quantity", Cell),
   )
 }
 
 fn validate_price(raw: String) -> Validated(Float, RowError) {
-  let cleaned = prep.trim()(raw)
-  parse_float(cleaned, "price")
+  parse.float(prep.trim()(raw), NotAFloat)
+  |> validated.map_error(fn(e) { Cell("price", e) })
   |> validated.and_then(
-    validator.predicate(fn(x) { x >=. 0.0 }, Negative)
+    rules.non_negative_float(Negative)
     |> validator.label("price", Cell),
   )
 }
 
-// --- Combine ---
+// --- Single row ---
 
 pub fn validate_row(
   name: String,
@@ -89,20 +76,36 @@ pub fn validate_row(
   )
 }
 
-// validate_row("", "abc", "-1.5")
+// --- Batch: validate multiple rows ---
+// Uses traverse_indexed to attach row numbers to errors.
+
+pub type RawRow {
+  RawRow(name: String, quantity: String, price: String)
+}
+
+pub fn validate_rows(
+  rows: List(RawRow),
+) -> Validated(List(Product), BatchError) {
+  validated.traverse_indexed(rows, fn(row, i) {
+    validate_row(row.name, row.quantity, row.price)
+    |> validated.map_error(fn(e) { Row(i, e) })
+  })
+}
+
+// validate_rows([
+//   RawRow("Widget", "10", "29.99"),
+//   RawRow("", "abc", "-1.0"),
+// ])
 //   -> Invalid([
-//        Cell("name", Empty),
-//        Cell("quantity", NotAnInteger("abc")),
-//        Cell("price", Negative),
+//        Row(1, Cell("name", Empty)),
+//        Row(1, Cell("quantity", NotAnInteger("abc"))),
+//        Row(1, Cell("price", Negative)),
 //      ])
-//
-// validate_row("  Widget  ", "10", "29.99")
-//   -> Valid(Product("Widget", 10, 29.99))
 ```
 
 Key patterns used:
-- `prep.trim()` applied inline before parsing
-- `validated.from_result` to bridge `int.parse` / `float.parse`
-- `validated.and_then` to chain parse-then-validate for each cell
+- `parse.int` / `parse.float` instead of manual boilerplate
+- `rules.non_negative_int` / `rules.non_negative_float` for cleaner range checks
+- `validated.traverse_indexed` for batch validation with row index in errors
 - `validator.label` with `Cell` wrapper for column-level error context
 - `validated.map3` to accumulate errors across all columns in a row

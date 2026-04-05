@@ -1,5 +1,7 @@
 import dataprep/validator.{type Validator}
+import gleam/float
 import gleam/list
+import gleam/regexp
 import gleam/string
 
 /// Fails if the string is exactly "". Whitespace-only strings like
@@ -12,6 +14,25 @@ pub fn not_empty(error: e) -> Validator(String, e) {
   validator.predicate(fn(s) { s != "" }, error)
 }
 
+/// Fails if the string is empty or contains only whitespace.
+/// Unlike `not_empty`, this rejects `"  "` and `"\t\n"`.
+/// The value is NOT trimmed -- it is returned unchanged on success.
+pub fn not_blank(error: e) -> Validator(String, e) {
+  validator.predicate(fn(s) { string.trim(s) != "" }, error)
+}
+
+/// Fails if the string does not match the given regular expression.
+/// Takes a pre-compiled `Regexp` to avoid runtime crashes from
+/// invalid patterns.
+///
+/// Example:
+///   let assert Ok(re) = regexp.from_string("^[a-z]+$")
+///   rules.matches(re, InvalidFormat)
+///
+pub fn matches(re: regexp.Regexp, error: e) -> Validator(String, e) {
+  validator.predicate(fn(s) { regexp.check(re, s) }, error)
+}
+
 /// Fails if the string length is less than min.
 pub fn min_length(min: Int, error: e) -> Validator(String, e) {
   validator.predicate(fn(s) { string.length(s) >= min }, error)
@@ -20,6 +41,17 @@ pub fn min_length(min: Int, error: e) -> Validator(String, e) {
 /// Fails if the string length exceeds max.
 pub fn max_length(max: Int, error: e) -> Validator(String, e) {
   validator.predicate(fn(s) { string.length(s) <= max }, error)
+}
+
+/// Fails if the string length is outside [min, max].
+pub fn length_between(min: Int, max: Int, error: e) -> Validator(String, e) {
+  validator.predicate(
+    fn(s) {
+      let len = string.length(s)
+      len >= min && len <= max
+    },
+    error,
+  )
 }
 
 /// Fails if the int is less than min.
@@ -32,6 +64,26 @@ pub fn max_int(max: Int, error: e) -> Validator(Int, e) {
   validator.predicate(fn(n) { n <= max }, error)
 }
 
+/// Fails if the float is less than min.
+pub fn min_float(min: Float, error: e) -> Validator(Float, e) {
+  validator.predicate(fn(x) { x >=. min }, error)
+}
+
+/// Fails if the float exceeds max.
+pub fn max_float(max: Float, error: e) -> Validator(Float, e) {
+  validator.predicate(fn(x) { x <=. max }, error)
+}
+
+/// Fails if the int is negative (less than 0).
+pub fn non_negative_int(error: e) -> Validator(Int, e) {
+  validator.predicate(fn(n) { n >= 0 }, error)
+}
+
+/// Fails if the float is negative (less than 0.0).
+pub fn non_negative_float(error: e) -> Validator(Float, e) {
+  validator.predicate(fn(x) { float.compare(x, 0.0) != order.Lt }, error)
+}
+
 /// Fails if the value is not in the allowed list.
 pub fn one_of(allowed: List(a), error: e) -> Validator(a, e) {
   validator.predicate(fn(a) { list.contains(allowed, a) }, error)
@@ -41,3 +93,5 @@ pub fn one_of(allowed: List(a), error: e) -> Validator(a, e) {
 pub fn equals(expected: a, error: e) -> Validator(a, e) {
   validator.predicate(fn(a) { a == expected }, error)
 }
+
+import gleam/order

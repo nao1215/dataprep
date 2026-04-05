@@ -130,3 +130,31 @@ pub fn label(
 ) -> Validator(a, e2) {
   map_error(v, fn(e) { wrap(ctx, e) })
 }
+
+/// Validate each element of a list with the given validator.
+/// All errors from all elements are accumulated.
+/// Returns Valid with the unchanged list on success.
+///
+/// For index-aware validation, use `validated.traverse_indexed`
+/// with `validator.label` to attach position info.
+pub fn each(
+  v: Validator(a, e),
+) -> fn(List(a)) -> validated.Validated(List(a), e) {
+  fn(items) { validated.traverse(items, v) }
+}
+
+/// Make a validator optional: if the value is None, it is always
+/// Valid(None). If Some(a), run the inner validator and wrap the
+/// result back in Some.
+pub fn optional(
+  v: Validator(a, e),
+) -> fn(option.Option(a)) -> validated.Validated(option.Option(a), e) {
+  fn(opt) {
+    case opt {
+      option.None -> Valid(option.None)
+      option.Some(a) -> validated.map(v(a), option.Some)
+    }
+  }
+}
+
+import gleam/option
