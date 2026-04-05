@@ -4,7 +4,7 @@
 [![Hex.pm](https://img.shields.io/hexpm/v/dataprep)](https://hex.pm/packages/dataprep)
 
 
-![dataprep_logo](./doc/img/dataprep-logo-small.png)
+![dataprep_logo](https://raw.githubusercontent.com/nao1215/dataprep/main/doc/img/dataprep-logo-small.png)
 
 Composable, type-driven preprocessing and validation combinator library for Gleam.
 
@@ -210,7 +210,7 @@ pub fn validate_signup(
 //      ])
 ```
 
-More examples are available in the [doc/recipes/](doc/recipes/) directory of the repository.
+More examples are available in the [doc/recipes/](https://github.com/nao1215/dataprep/tree/main/doc/recipes) directory of the repository.
 
 ## Modules
 
@@ -248,8 +248,8 @@ just check      # all checks without deps download
 
 ## Contributing
 
-Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for details.
+Contributions are welcome. See [CONTRIBUTING.md](https://github.com/nao1215/dataprep/blob/main/CONTRIBUTING.md) for details.
 
 ## License
 
-[MIT](LICENSE)
+[MIT](https://github.com/nao1215/dataprep/blob/main/LICENSE)
