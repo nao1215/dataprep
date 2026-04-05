@@ -2,14 +2,14 @@
 
 Validate HTTP query parameters where values arrive as strings
 and must be parsed into typed values before validation.
+Uses `dataprep/parse` to eliminate manual `int.parse` boilerplate.
 
 ```gleam
+import dataprep/parse
 import dataprep/prep
 import dataprep/rules
 import dataprep/validated.{type Validated}
 import dataprep/validator
-import gleam/int
-import gleam/result
 
 pub type SearchQuery {
   SearchQuery(query: String, page: Int, per_page: Int)
@@ -26,28 +26,20 @@ pub type ParamDetail {
   TooBig(max: Int)
 }
 
-// --- Parse helpers ---
-
-fn parse_int(raw: String, param_name: String) -> Validated(Int, ParamError) {
-  raw
-  |> int.parse
-  |> result.map_error(fn(_) { Param(param_name, NotAnInteger(raw)) })
-  |> validated.from_result
-}
-
 // --- Field processors ---
 
 fn validate_query(raw: String) -> Validated(String, ParamError) {
   let clean = prep.trim()
   let check =
-    rules.not_empty(Missing)
+    rules.not_blank(Missing)
     |> validator.label("q", Param)
 
   raw |> clean |> check
 }
 
 fn validate_page(raw: String) -> Validated(Int, ParamError) {
-  parse_int(prep.trim()(raw), "page")
+  parse.int(prep.trim()(raw), NotAnInteger)
+  |> validated.map_error(fn(e) { Param("page", e) })
   |> validated.and_then(
     rules.min_int(1, TooSmall(1))
     |> validator.label("page", Param),
@@ -55,7 +47,8 @@ fn validate_page(raw: String) -> Validated(Int, ParamError) {
 }
 
 fn validate_per_page(raw: String) -> Validated(Int, ParamError) {
-  parse_int(prep.trim()(raw), "per_page")
+  parse.int(prep.trim()(raw), NotAnInteger)
+  |> validated.map_error(fn(e) { Param("per_page", e) })
   |> validated.and_then(
     rules.min_int(1, TooSmall(1))
     |> validator.both(rules.max_int(100, TooBig(100)))
@@ -90,7 +83,8 @@ pub fn validate_search(
 ```
 
 Key patterns used:
-- `validated.from_result` to bridge `int.parse` into Validated
+- `parse.int` instead of manual `int.parse |> result.map_error |> validated.from_result`
+- `rules.not_blank` instead of `rules.not_empty` (rejects whitespace-only)
 - `validated.and_then` to chain parsing (type-changing) with validation
 - `validator.label` with a `Param` wrapper for structured errors
 - `validated.map3` to combine independent fields

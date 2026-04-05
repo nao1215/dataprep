@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.2.0] - 2026-04-05
+
+### Added
+- `dataprep/rules`: `not_blank`, `matches` (pre-compiled `Regexp`), `length_between`, `min_float`, `max_float`, `non_negative_int`, `non_negative_float`
+- `dataprep/validated`: `sequence`, `traverse`, `traverse_indexed`, `from_result_map`
+- `dataprep/validator`: `each`, `optional`
+- `dataprep/parse` module: `int`, `float` parse helpers for String to typed Validated
+- Test suite expanded from 73 to 214 tests
+- README examples: field validation with label, parse-then-validate, nested error labeling with map3
+- Recipe documents: signup form, query params, CSV row (with batch via traverse_indexed), API payload (with each, optional, matches)
+- GitHub Actions release workflow for automatic Hex publish on v* tag push
+- SECURITY.md, CONTRIBUTING.md, CHANGELOG.md
+
+### Changed
+- `matches` now takes a pre-compiled `regexp.Regexp` instead of a pattern string to avoid runtime crashes on invalid patterns
+- Recipes updated to use new APIs (parse helpers, not_blank, length_between, each, optional)
+- README links use absolute GitHub URLs for HexDocs compatibility
+
 ## [0.1.0] - 2026-04-05
 
 ### Added

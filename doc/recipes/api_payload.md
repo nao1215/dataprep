@@ -1,8 +1,8 @@
 # Recipe: API Payload Validation
 
 Validate a JSON API request payload after decoding.
-Demonstrates alt (accept multiple formats) and guard
-(prerequisite checks before expensive validation).
+Demonstrates `alt` (accept multiple formats), `matches` with
+pre-compiled regex, `optional` fields, and `each` for tag lists.
 
 ```gleam
 import dataprep/prep
@@ -10,10 +10,18 @@ import dataprep/rules
 import dataprep/validated.{type Validated}
 import dataprep/validator
 import gleam/list
+import gleam/option.{type Option}
+import gleam/regexp
 import gleam/string
 
 pub type CreatePostRequest {
-  CreatePostRequest(title: String, slug: String, status: String)
+  CreatePostRequest(
+    title: String,
+    slug: String,
+    status: String,
+    tags: List(String),
+    subtitle: Option(String),
+  )
 }
 
 pub type ApiError {
@@ -28,6 +36,7 @@ pub type ApiDetail {
   InvalidUuid
   InvalidIdFormat
   InvalidStatus
+  InvalidTag
 }
 
 // --- Slug / UUID-like checks ---
@@ -49,11 +58,8 @@ fn is_uuid_like(s: String) -> Bool {
 fn validate_title(raw: String) -> Validated(String, ApiError) {
   let clean = prep.trim()
   let check =
-    rules.not_empty(Required)
-    |> validator.guard(
-      rules.min_length(3, TooShort(3))
-      |> validator.both(rules.max_length(200, TooLong(200))),
-    )
+    rules.not_blank(Required)
+    |> validator.guard(rules.length_between(3, 200, TooShort(3)))
     |> validator.label("title", Field)
 
   raw |> clean |> check
@@ -61,8 +67,6 @@ fn validate_title(raw: String) -> Validated(String, ApiError) {
 
 fn validate_slug(raw: String) -> Validated(String, ApiError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
-
-  // non-empty guard, then accept either a slug or a UUID
   let check =
     rules.not_empty(Required)
     |> validator.guard(
@@ -84,38 +88,68 @@ fn validate_status(raw: String) -> Validated(String, ApiError) {
   raw |> clean |> check
 }
 
+// Uses validator.each to validate every tag in the list.
+fn validate_tags(tags: List(String)) -> Validated(List(String), ApiError) {
+  let assert Ok(tag_re) = regexp.from_string("^[a-z0-9-]+$")
+  let check_tag =
+    rules.not_empty(Required)
+    |> validator.guard(rules.matches(tag_re, InvalidTag))
+  validator.each(check_tag)(tags)
+  |> validated.map_error(fn(e) { Field("tags", e) })
+}
+
+// Uses validator.optional to skip validation when absent.
+fn validate_subtitle(
+  raw: Option(String),
+) -> Validated(Option(String), ApiError) {
+  let check =
+    rules.not_blank(Required)
+    |> validator.guard(rules.length_between(3, 100, TooShort(3)))
+  validator.optional(check)(raw)
+  |> validated.map_error(fn(e) { Field("subtitle", e) })
+}
+
 // --- Combine ---
 
 pub fn validate_create_post(
   title: String,
   slug: String,
   status: String,
+  tags: List(String),
+  subtitle: Option(String),
 ) -> Validated(CreatePostRequest, ApiError) {
-  validated.map3(
+  validated.map5(
     CreatePostRequest,
     validate_title(title),
     validate_slug(slug),
     validate_status(status),
+    validate_tags(tags),
+    validate_subtitle(subtitle),
   )
 }
 
-// validate_create_post("", "INVALID!!!", "unknown")
+// validate_create_post("", "INVALID!!!", "unknown", ["", "!!!"], option.None)
 //   -> Invalid([
 //        Field("title", Required),
 //        Field("slug", InvalidIdFormat),
 //        Field("status", InvalidStatus),
+//        Field("tags", Required),
+//        Field("tags", InvalidTag),
 //      ])
 //
-// validate_create_post("My Post", "my-post", "draft")
-//   -> Valid(CreatePostRequest("My Post", "my-post", "draft"))
-//
-// validate_create_post("My Post", "550e8400-e29b-41d4-a716-446655440000", "published")
-//   -> Valid(CreatePostRequest("My Post", "550e8400-e29b-41d4-a716-446655440000", "published"))
+// validate_create_post(
+//   "My Post", "my-post", "draft", ["gleam", "fp"], option.Some("A subtitle"),
+// )
+//   -> Valid(CreatePostRequest(
+//        "My Post", "my-post", "draft", ["gleam", "fp"], Some("A subtitle"),
+//      ))
 ```
 
 Key patterns used:
+- `rules.not_blank` instead of `rules.not_empty` (rejects whitespace-only)
+- `rules.length_between` instead of separate `min_length` + `max_length`
+- `rules.matches` with pre-compiled `Regexp` (no runtime crash on bad patterns)
+- `validator.each` to validate every element in the tags list
+- `validator.optional` to skip validation when subtitle is None
 - `validator.alt` to accept either slug or UUID format
-- `validator.map_error` to simplify alt's accumulated errors into a single error
-- `rules.one_of` for enum-like validation
-- `validator.guard` to skip length checks when the field is empty
-- `validated.map3` for field-level error accumulation
+- `validated.map5` for five-field accumulation

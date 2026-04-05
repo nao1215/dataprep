@@ -13,6 +13,7 @@
 ///   dataprep/validated      -- Applicative error accumulation (map2..map5)
 ///   dataprep/non_empty_list -- At-least-one guarantee for error lists
 ///   dataprep/rules          -- Built-in validation rules
+///   dataprep/parse          -- Parse helpers (String -> typed Validated)
 import dataprep/non_empty_list
 import dataprep/prep
 import dataprep/validated

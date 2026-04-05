@@ -106,11 +106,10 @@ Use `validated.and_then` to bridge type-changing parsing with
 same-type validation. Parsing short-circuits; validation accumulates.
 
 ```gleam
+import dataprep/parse
 import dataprep/rules
 import dataprep/validated.{type Validated}
 import dataprep/validator
-import gleam/int
-import gleam/result
 
 pub type AgeError {
   NotAnInteger(raw: String)
@@ -118,19 +117,12 @@ pub type AgeError {
   TooOld(max: Int)
 }
 
-fn parse_int(raw: String) -> Validated(Int, AgeError) {
-  raw
-  |> int.parse
-  |> result.map_error(fn(_) { NotAnInteger(raw) })
-  |> validated.from_result
-}
-
 pub fn validate_age(raw: String) -> Validated(Int, AgeError) {
   let check_range =
     rules.min_int(0, TooYoung(0))
     |> validator.both(rules.max_int(150, TooOld(150)))
 
-  parse_int(raw)
+  parse.int(raw, NotAnInteger)
   |> validated.and_then(check_range)
 }
 
@@ -217,10 +209,11 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | Module | Responsibility |
 |--------|---------------|
 | `dataprep/prep` | Infallible transformations: `trim`, `lowercase`, `uppercase`, `collapse_space`, `replace`, `default`. Compose with `then` or `sequence`. |
-| `dataprep/validator` | Checks without transformation: `check`, `predicate`, `both`, `all`, `alt`, `guard`, `map_error`, `label`. |
-| `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `to_result`, `map2`..`map5`. |
+| `dataprep/validator` | Checks without transformation: `check`, `predicate`, `both`, `all`, `alt`, `guard`, `map_error`, `label`, `each`, `optional`. |
+| `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `from_result_map`, `to_result`, `map2`..`map5`, `sequence`, `traverse`, `traverse_indexed`. |
 | `dataprep/non_empty_list` | At-least-one guarantee for error lists: `single`, `cons`, `append`, `concat`, `map`, `flat_map`, `to_list`, `from_list`. |
-| `dataprep/rules` | Built-in rules: `not_empty`, `min_length`, `max_length`, `min_int`, `max_int`, `one_of`, `equals`. |
+| `dataprep/rules` | Built-in rules: `not_empty`, `not_blank`, `matches`, `min_length`, `max_length`, `length_between`, `min_int`, `max_int`, `min_float`, `max_float`, `non_negative_int`, `non_negative_float`, `one_of`, `equals`. |
+| `dataprep/parse` | Parse helpers: `int`, `float`. Bridge `String` to typed `Validated` with custom error mapping. |
 
 ## Composition overview
 
@@ -232,7 +225,11 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | Validate | `validator.guard` | Short-circuit | Skip if prerequisite fails |
 | Combine | `validated.map2`..`map5` | Accumulate all | Build domain types from independent fields |
 | Bridge | `validated.and_then` | Short-circuit | Parse then validate (type changes) |
+| Bridge | `parse.int` / `parse.float` | Short-circuit | String to typed Validated in one step |
 | Bridge | `raw \|> prep \|> validator` | (prep has none) | Apply infallible transform before validation |
+| Collection | `validated.sequence` / `traverse` | Accumulate all | Validate a list of values |
+| Collection | `validator.each` | Accumulate all | Apply a validator to every list element |
+| Collection | `validator.optional` | (none if None) | Skip validation for absent values |
 
 ## Development
 

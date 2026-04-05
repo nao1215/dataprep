@@ -32,11 +32,8 @@ fn validate_name(raw: String) -> Validated(String, FormError) {
   let clean =
     prep.sequence([prep.trim(), prep.lowercase(), prep.collapse_space()])
   let check =
-    rules.not_empty(Empty)
-    |> validator.guard(
-      rules.min_length(2, TooShort(2))
-      |> validator.both(rules.max_length(50, TooLong(50))),
-    )
+    rules.not_blank(Empty)
+    |> validator.guard(rules.length_between(2, 50, TooShort(2)))
     |> validator.label("name", Field)
 
   raw |> clean |> check
@@ -45,7 +42,7 @@ fn validate_name(raw: String) -> Validated(String, FormError) {
 fn validate_email(raw: String) -> Validated(String, FormError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
   let check =
-    rules.not_empty(Empty)
+    rules.not_blank(Empty)
     |> validator.guard(
       validator.predicate(fn(s) { string.contains(s, "@") }, NoAtSign),
     )
@@ -56,11 +53,8 @@ fn validate_email(raw: String) -> Validated(String, FormError) {
 
 fn validate_password(raw: String) -> Validated(String, FormError) {
   let check =
-    rules.not_empty(Empty)
-    |> validator.guard(
-      rules.min_length(8, TooShort(8))
-      |> validator.both(rules.max_length(128, TooLong(128))),
-    )
+    rules.not_blank(Empty)
+    |> validator.guard(rules.length_between(8, 128, TooShort(8)))
     |> validator.label("password", Field)
 
   check(raw)
