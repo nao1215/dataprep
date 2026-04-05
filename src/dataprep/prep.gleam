@@ -41,6 +41,10 @@ pub fn uppercase() -> Prep(String) {
 }
 
 /// Collapse consecutive whitespace into a single space.
+///
+/// Uses `let assert` for the regex compilation. The pattern `\s+` is
+/// a fixed, known-valid regular expression, so compilation cannot fail
+/// at runtime. The assert is intentional and safe.
 pub fn collapse_space() -> Prep(String) {
   let assert Ok(re) = regexp.from_string("\\s+")
   fn(s) { regexp.replace(each: re, in: s, with: " ") }

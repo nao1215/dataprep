@@ -59,6 +59,157 @@ pub fn validate_user(name: String, age: Int) -> Validated(User, Err) {
 // validate_user("", -1)           -> Invalid([NameEmpty, AgeTooYoung])
 ```
 
+## Examples
+
+### Field validation with structured error context
+
+Attach field names to errors so callers can identify which field failed.
+
+```gleam
+import dataprep/prep
+import dataprep/rules
+import dataprep/validated.{type Validated}
+import dataprep/validator
+
+pub type FormError {
+  Field(name: String, detail: FieldDetail)
+}
+
+pub type FieldDetail {
+  Empty
+  TooShort(min: Int)
+  TooLong(max: Int)
+}
+
+pub fn validate_username(raw: String) -> Validated(String, FormError) {
+  let clean = prep.trim() |> prep.then(prep.lowercase())
+  let check =
+    rules.not_empty(Empty)
+    |> validator.guard(
+      rules.min_length(3, TooShort(3))
+      |> validator.both(rules.max_length(20, TooLong(20))),
+    )
+    |> validator.label("username", Field)
+
+  raw |> clean |> check
+}
+
+// validate_username("  Al  ")
+//   -> Invalid([Field("username", TooShort(3))])
+// validate_username("  Alice  ")
+//   -> Valid("alice")
+```
+
+### Parse then validate
+
+Use `validated.and_then` to bridge type-changing parsing with
+same-type validation. Parsing short-circuits; validation accumulates.
+
+```gleam
+import dataprep/rules
+import dataprep/validated.{type Validated}
+import gleam/int
+
+pub type AgeError {
+  NotAnInteger(raw: String)
+  TooYoung(min: Int)
+  TooOld(max: Int)
+}
+
+fn parse_int(raw: String) -> Validated(Int, AgeError) {
+  raw
+  |> int.parse
+  |> result.map_error(fn(_) { NotAnInteger(raw) })
+  |> validated.from_result
+}
+
+pub fn validate_age(raw: String) -> Validated(Int, AgeError) {
+  let check_range =
+    rules.min_int(0, TooYoung(0))
+    |> validator.both(rules.max_int(150, TooOld(150)))
+
+  parse_int(raw)
+  |> validated.and_then(check_range)
+}
+
+// validate_age("abc") -> Invalid([NotAnInteger("abc")])
+// validate_age("200") -> Invalid([TooOld(150)])
+// validate_age("25")  -> Valid(25)
+```
+
+### Nested error labeling with map3
+
+Combine multiple fields into a domain type. All errors from all
+fields are accumulated with their field names.
+
+```gleam
+import dataprep/prep
+import dataprep/rules
+import dataprep/validated.{type Validated}
+import dataprep/validator
+
+pub type SignupForm {
+  SignupForm(name: String, email: String, age: Int)
+}
+
+pub type SignupError {
+  Field(name: String, detail: Detail)
+}
+
+pub type Detail {
+  Empty
+  TooShort(min: Int)
+  OutOfRange(min: Int, max: Int)
+}
+
+fn validate_name(raw: String) -> Validated(String, SignupError) {
+  let clean = prep.trim() |> prep.then(prep.lowercase())
+  let check =
+    rules.not_empty(Empty)
+    |> validator.guard(rules.min_length(2, TooShort(2)))
+    |> validator.label("name", Field)
+  raw |> clean |> check
+}
+
+fn validate_email(raw: String) -> Validated(String, SignupError) {
+  let clean = prep.trim() |> prep.then(prep.lowercase())
+  let check =
+    rules.not_empty(Empty)
+    |> validator.label("email", Field)
+  raw |> clean |> check
+}
+
+fn validate_age(age: Int) -> Validated(Int, SignupError) {
+  let check =
+    rules.min_int(0, OutOfRange(0, 150))
+    |> validator.both(rules.max_int(150, OutOfRange(0, 150)))
+    |> validator.label("age", Field)
+  check(age)
+}
+
+pub fn validate_signup(
+  name: String,
+  email: String,
+  age: Int,
+) -> Validated(SignupForm, SignupError) {
+  validated.map3(
+    SignupForm,
+    validate_name(name),
+    validate_email(email),
+    validate_age(age),
+  )
+}
+
+// validate_signup("", "", 200)
+//   -> Invalid([
+//        Field("name", Empty),
+//        Field("email", Empty),
+//        Field("age", OutOfRange(0, 150)),
+//      ])
+```
+
+See [doc/recipes/](doc/recipes/) for more examples.
+
 ## Modules
 
 | Module | Responsibility |
