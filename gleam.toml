@@ -49,9 +49,4 @@ unused_exports = "error"
 unwrap_used = "error"
 
 [tools.glinter.ignore]
-"test/**/*.gleam" = [
-  "assert_ok_pattern",
-  "missing_type_annotation",
-  "short_variable_name",
-  "unused_exports",
-]
+"test/**/*.gleam" = ["unused_exports"]
