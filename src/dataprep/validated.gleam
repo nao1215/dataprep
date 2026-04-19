@@ -77,7 +77,8 @@ pub fn map2(
     Valid(a), Valid(b) -> Valid(f(a, b))
     Valid(_), Invalid(eb) -> Invalid(eb)
     Invalid(ea), Valid(_) -> Invalid(ea)
-    Invalid(ea), Invalid(eb) -> Invalid(non_empty_list.append(ea, eb))
+    Invalid(ea), Invalid(eb) ->
+      Invalid(non_empty_list.append(left: ea, right: eb))
   }
 }
 

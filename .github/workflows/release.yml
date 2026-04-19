@@ -12,15 +12,14 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - uses: extractions/setup-just@v3
+
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "27"
           gleam-version: "1.15"
 
-      - run: gleam deps download
-      - run: gleam format --check
-      - run: gleam build --warnings-as-errors
-      - run: gleam test
+      - run: just ci
       - run: echo 'I am not using semantic versioning' | gleam publish -y
         env:
           HEXPM_API_KEY: ${{ secrets.HEXPM_API_KEY }}

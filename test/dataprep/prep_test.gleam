@@ -2,182 +2,185 @@ import dataprep/prep
 
 // --- identity ---
 
-pub fn identity_test() {
-  let p = prep.identity()
-  let assert "hello" = p("hello")
+pub fn identity_test() -> Nil {
+  let prepper = prep.identity()
+  assert prepper("hello") == "hello"
 }
 
-pub fn identity_empty_test() {
-  let p = prep.identity()
-  let assert "" = p("")
+pub fn identity_empty_test() -> Nil {
+  let prepper = prep.identity()
+  assert prepper("") == ""
 }
 
 // --- trim ---
 
-pub fn trim_test() {
-  let p = prep.trim()
-  let assert "hello" = p("  hello  ")
+pub fn trim_test() -> Nil {
+  let prepper = prep.trim()
+  assert prepper("  hello  ") == "hello"
 }
 
-pub fn trim_empty_test() {
-  let assert "" = prep.trim()("")
+pub fn trim_empty_test() -> Nil {
+  assert prep.trim()("") == ""
 }
 
-pub fn trim_only_whitespace_test() {
-  let assert "" = prep.trim()("   \t\n  ")
+pub fn trim_only_whitespace_test() -> Nil {
+  assert prep.trim()("   \t\n  ") == ""
 }
 
-pub fn trim_no_whitespace_test() {
-  let assert "hello" = prep.trim()("hello")
+pub fn trim_no_whitespace_test() -> Nil {
+  assert prep.trim()("hello") == "hello"
 }
 
 // --- lowercase ---
 
-pub fn lowercase_test() {
-  let p = prep.lowercase()
-  let assert "hello" = p("HELLO")
+pub fn lowercase_test() -> Nil {
+  let prepper = prep.lowercase()
+  assert prepper("HELLO") == "hello"
 }
 
-pub fn lowercase_mixed_test() {
-  let assert "hello world" = prep.lowercase()("Hello World")
+pub fn lowercase_mixed_test() -> Nil {
+  assert prep.lowercase()("Hello World") == "hello world"
 }
 
-pub fn lowercase_empty_test() {
-  let assert "" = prep.lowercase()("")
+pub fn lowercase_empty_test() -> Nil {
+  assert prep.lowercase()("") == ""
 }
 
-pub fn lowercase_already_lower_test() {
-  let assert "abc" = prep.lowercase()("abc")
+pub fn lowercase_already_lower_test() -> Nil {
+  assert prep.lowercase()("abc") == "abc"
 }
 
 // --- uppercase ---
 
-pub fn uppercase_test() {
-  let p = prep.uppercase()
-  let assert "HELLO" = p("hello")
+pub fn uppercase_test() -> Nil {
+  let prepper = prep.uppercase()
+  assert prepper("hello") == "HELLO"
 }
 
-pub fn uppercase_empty_test() {
-  let assert "" = prep.uppercase()("")
+pub fn uppercase_empty_test() -> Nil {
+  assert prep.uppercase()("") == ""
 }
 
 // --- collapse_space ---
 
-pub fn collapse_space_test() {
-  let p = prep.collapse_space()
-  let assert "a b c" = p("a   b\t\tc")
+pub fn collapse_space_test() -> Nil {
+  let prepper = prep.collapse_space()
+  assert prepper("a   b\t\tc") == "a b c"
 }
 
-pub fn collapse_space_single_space_test() {
-  let assert "a b" = prep.collapse_space()("a b")
+pub fn collapse_space_single_space_test() -> Nil {
+  assert prep.collapse_space()("a b") == "a b"
 }
 
-pub fn collapse_space_leading_trailing_test() {
-  let assert " hello world " = prep.collapse_space()("  hello   world  ")
+pub fn collapse_space_leading_trailing_test() -> Nil {
+  assert prep.collapse_space()("  hello   world  ") == " hello world "
 }
 
-pub fn collapse_space_empty_test() {
-  let assert "" = prep.collapse_space()("")
+pub fn collapse_space_empty_test() -> Nil {
+  assert prep.collapse_space()("") == ""
 }
 
-pub fn collapse_space_tabs_and_newlines_test() {
-  let assert " a b " = prep.collapse_space()("\t\na\n\n\tb\t")
+pub fn collapse_space_tabs_and_newlines_test() -> Nil {
+  assert prep.collapse_space()("\t\na\n\n\tb\t") == " a b "
 }
 
 // --- replace ---
 
-pub fn replace_test() {
-  let p = prep.replace("-", "_")
-  let assert "foo_bar_baz" = p("foo-bar-baz")
+pub fn replace_test() -> Nil {
+  let prepper = prep.replace(target: "-", replacement: "_")
+  assert prepper("foo-bar-baz") == "foo_bar_baz"
 }
 
-pub fn replace_no_match_test() {
-  let assert "hello" = prep.replace("-", "_")("hello")
+pub fn replace_no_match_test() -> Nil {
+  assert prep.replace(target: "-", replacement: "_")("hello") == "hello"
 }
 
-pub fn replace_absent_target_test() {
-  let assert "hello" = prep.replace("x", "y")("hello")
+pub fn replace_absent_target_test() -> Nil {
+  assert prep.replace(target: "x", replacement: "y")("hello") == "hello"
 }
 
-pub fn replace_to_empty_test() {
-  let assert "hllo" = prep.replace("e", "")("hello")
+pub fn replace_to_empty_test() -> Nil {
+  assert prep.replace(target: "e", replacement: "")("hello") == "hllo"
 }
 
 // --- default ---
 
-pub fn default_empty_string_test() {
-  let p = prep.default("N/A")
-  let assert "N/A" = p("")
+pub fn default_empty_string_test() -> Nil {
+  let prepper = prep.default("N/A")
+  assert prepper("") == "N/A"
 }
 
-pub fn default_non_empty_test() {
-  let p = prep.default("N/A")
-  let assert "hello" = p("hello")
+pub fn default_non_empty_test() -> Nil {
+  let prepper = prep.default("N/A")
+  assert prepper("hello") == "hello"
 }
 
-pub fn default_whitespace_only_test() {
-  let p = prep.default("N/A")
-  let assert "   " = p("   ")
+pub fn default_whitespace_only_test() -> Nil {
+  let prepper = prep.default("N/A")
+  assert prepper("   ") == "   "
 }
 
 // --- then (composition) ---
 
-pub fn then_test() {
-  let p = prep.trim() |> prep.then(prep.lowercase())
-  let assert "hello" = p("  HELLO  ")
+pub fn then_test() -> Nil {
+  let prepper = prep.trim() |> prep.then(first: _, next: prep.lowercase())
+  assert prepper("  HELLO  ") == "hello"
 }
 
-pub fn then_order_matters_test() {
+pub fn then_order_matters_test() -> Nil {
   // trim then default("X") -> "  " becomes "" becomes "X"
-  let p1 = prep.trim() |> prep.then(prep.default("X"))
-  let assert "X" = p1("  ")
+  let trim_then_default =
+    prep.trim() |> prep.then(first: _, next: prep.default("X"))
+  assert trim_then_default("  ") == "X"
 
   // default("X") then trim -> "  " is not "", so default is no-op, then trim -> ""
-  let p2 = prep.default("X") |> prep.then(prep.trim())
-  let assert "" = p2("  ")
+  let default_then_trim =
+    prep.default("X") |> prep.then(first: _, next: prep.trim())
+  assert default_then_trim("  ") == ""
 }
 
-pub fn then_three_steps_test() {
-  let p =
+pub fn then_three_steps_test() -> Nil {
+  let prepper =
     prep.trim()
-    |> prep.then(prep.lowercase())
-    |> prep.then(prep.collapse_space())
-  let assert "hello world" = p("  Hello   World  ")
+    |> prep.then(first: _, next: prep.lowercase())
+    |> prep.then(first: _, next: prep.collapse_space())
+  assert prepper("  Hello   World  ") == "hello world"
 }
 
 // --- sequence ---
 
-pub fn sequence_test() {
-  let p = prep.sequence([prep.trim(), prep.lowercase(), prep.collapse_space()])
-  let assert "john doe" = p("  John   DOE  ")
+pub fn sequence_test() -> Nil {
+  let prepper =
+    prep.sequence([prep.trim(), prep.lowercase(), prep.collapse_space()])
+  assert prepper("  John   DOE  ") == "john doe"
 }
 
-pub fn sequence_empty_test() {
-  let p = prep.sequence([])
-  let assert "unchanged" = p("unchanged")
+pub fn sequence_empty_test() -> Nil {
+  let prepper = prep.sequence([])
+  assert prepper("unchanged") == "unchanged"
 }
 
-pub fn sequence_single_test() {
-  let p = prep.sequence([prep.trim()])
-  let assert "hello" = p("  hello  ")
+pub fn sequence_single_test() -> Nil {
+  let prepper = prep.sequence([prep.trim()])
+  assert prepper("  hello  ") == "hello"
 }
 
 // --- composition patterns ---
 
-pub fn trim_then_default_test() {
-  let p = prep.trim() |> prep.then(prep.default("N/A"))
-  let assert "N/A" = p("   ")
-  let assert "hello" = p("hello")
-  let assert "N/A" = p("")
+pub fn trim_then_default_test() -> Nil {
+  let prepper = prep.trim() |> prep.then(first: _, next: prep.default("N/A"))
+  assert prepper("   ") == "N/A"
+  assert prepper("hello") == "hello"
+  assert prepper("") == "N/A"
 }
 
-pub fn full_pipeline_test() {
+pub fn full_pipeline_test() -> Nil {
   let clean =
     prep.sequence([
       prep.trim(),
       prep.lowercase(),
       prep.collapse_space(),
-      prep.replace(".", ""),
+      prep.replace(target: ".", replacement: ""),
     ])
-  let assert "john doe jr" = clean("  John.  DOE.  Jr  ")
+  assert clean("  John.  DOE.  Jr  ") == "john doe jr"
 }

@@ -8,7 +8,7 @@ pub type Prep(a) =
   fn(a) -> a
 
 /// Sequential composition: apply p1, then apply p2 to the result.
-pub fn then(p1: Prep(a), p2: Prep(a)) -> Prep(a) {
+pub fn then(first p1: Prep(a), next p2: Prep(a)) -> Prep(a) {
   fn(x) { p2(p1(x)) }
 }
 
@@ -16,7 +16,7 @@ pub fn then(p1: Prep(a), p2: Prep(a)) -> Prep(a) {
 /// Empty list returns identity.
 pub fn sequence(steps: List(Prep(a))) -> Prep(a) {
   list.fold(over: steps, from: identity(), with: fn(acc, step) {
-    then(acc, step)
+    then(first: acc, next: step)
   })
 }
 
@@ -46,12 +46,16 @@ pub fn uppercase() -> Prep(String) {
 /// a fixed, known-valid regular expression, so compilation cannot fail
 /// at runtime. The assert is intentional and safe.
 pub fn collapse_space() -> Prep(String) {
+  // nolint: assert_ok_pattern -- "\\s+" is a fixed, known-valid regex literal
   let assert Ok(re) = regexp.from_string("\\s+")
   fn(s) { regexp.replace(each: re, in: s, with: " ") }
 }
 
 /// Replace all occurrences of target with replacement.
-pub fn replace(target: String, replacement: String) -> Prep(String) {
+pub fn replace(
+  target target: String,
+  replacement replacement: String,
+) -> Prep(String) {
   fn(s) { string.replace(in: s, each: target, with: replacement) }
 }
 
@@ -61,7 +65,7 @@ pub fn replace(target: String, replacement: String) -> Prep(String) {
 /// inputs like "  " are NOT treated as empty. If you want
 /// whitespace-only values to trigger the default, compose with trim:
 ///
-///   prep.trim() |> prep.then(prep.default("N/A"))
+///   prep.trim() |> prep.then(first: _, next: prep.default("N/A"))
 pub fn default(fallback: String) -> Prep(String) {
   fn(s) {
     case s {

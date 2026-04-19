@@ -12,44 +12,48 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v3
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "27"
           gleam-version: "1.15"
-      - run: gleam format --check
+      - run: just format-check
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v3
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "27"
           gleam-version: "1.15"
-      - run: gleam deps download
-      - run: gleam build --warnings-as-errors
+      - run: just deps
+      - run: just lint
 
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v3
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "27"
           gleam-version: "1.15"
-      - run: gleam deps download
-      - run: gleam build
+      - run: just deps
+      - run: just build
 
   test:
     name: Test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: extractions/setup-just@v3
       - uses: erlef/setup-beam@v1
         with:
           otp-version: "27"
           gleam-version: "1.15"
-      - run: gleam deps download
-      - run: gleam test
+      - run: just deps
+      - run: just test

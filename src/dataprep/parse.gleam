@@ -15,7 +15,7 @@ import gleam/int
 pub fn int(raw: String, on_error: fn(String) -> e) -> Validated(Int, e) {
   case int.parse(raw) {
     Ok(n) -> Valid(n)
-    Error(_) -> Invalid(non_empty_list.single(on_error(raw)))
+    Error(Nil) -> Invalid(non_empty_list.single(on_error(raw)))
   }
 }
 
@@ -28,6 +28,6 @@ pub fn int(raw: String, on_error: fn(String) -> e) -> Validated(Int, e) {
 pub fn float(raw: String, on_error: fn(String) -> e) -> Validated(Float, e) {
   case float.parse(raw) {
     Ok(x) -> Valid(x)
-    Error(_) -> Invalid(non_empty_list.single(on_error(raw)))
+    Error(Nil) -> Invalid(non_empty_list.single(on_error(raw)))
   }
 }
