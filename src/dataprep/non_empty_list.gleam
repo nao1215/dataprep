@@ -10,12 +10,15 @@ pub fn single(value: a) -> NonEmptyList(a) {
 }
 
 /// Prepend an element to a NonEmptyList.
-pub fn cons(head: a, tail: NonEmptyList(a)) -> NonEmptyList(a) {
+pub fn cons(head head: a, tail tail: NonEmptyList(a)) -> NonEmptyList(a) {
   NonEmptyList(first: head, rest: [tail.first, ..tail.rest])
 }
 
 /// Concatenate two NonEmptyLists.
-pub fn append(left: NonEmptyList(a), right: NonEmptyList(a)) -> NonEmptyList(a) {
+pub fn append(
+  left left: NonEmptyList(a),
+  right right: NonEmptyList(a),
+) -> NonEmptyList(a) {
   NonEmptyList(
     first: left.first,
     rest: list.append(left.rest, [right.first, ..right.rest]),
@@ -24,7 +27,9 @@ pub fn append(left: NonEmptyList(a), right: NonEmptyList(a)) -> NonEmptyList(a) 
 
 /// Flatten a NonEmptyList of NonEmptyLists into a single NonEmptyList.
 pub fn concat(lists: NonEmptyList(NonEmptyList(a))) -> NonEmptyList(a) {
-  list.fold(over: lists.rest, from: lists.first, with: append)
+  list.fold(over: lists.rest, from: lists.first, with: fn(acc, next) {
+    append(left: acc, right: next)
+  })
 }
 
 /// Transform every element.

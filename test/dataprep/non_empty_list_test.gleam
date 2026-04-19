@@ -15,15 +15,15 @@ pub fn single_string_test() {
 // --- cons ---
 
 pub fn cons_test() {
-  let nel = non_empty_list.single(2) |> non_empty_list.cons(1, _)
+  let nel = non_empty_list.single(2) |> non_empty_list.cons(head: 1, tail: _)
   let assert NonEmptyList(first: 1, rest: [2]) = nel
 }
 
 pub fn cons_multiple_test() {
   let nel =
     non_empty_list.single(3)
-    |> non_empty_list.cons(2, _)
-    |> non_empty_list.cons(1, _)
+    |> non_empty_list.cons(head: 2, tail: _)
+    |> non_empty_list.cons(head: 1, tail: _)
   let assert [1, 2, 3] = non_empty_list.to_list(nel)
 }
 
@@ -32,13 +32,16 @@ pub fn cons_multiple_test() {
 pub fn append_test() {
   let left = NonEmptyList(first: 1, rest: [2])
   let right = NonEmptyList(first: 3, rest: [4])
-  let result = non_empty_list.append(left, right)
+  let result = non_empty_list.append(left: left, right: right)
   let assert NonEmptyList(first: 1, rest: [2, 3, 4]) = result
 }
 
 pub fn append_single_to_single_test() {
   let result =
-    non_empty_list.append(non_empty_list.single(1), non_empty_list.single(2))
+    non_empty_list.append(
+      left: non_empty_list.single(1),
+      right: non_empty_list.single(2),
+    )
   let assert [1, 2] = non_empty_list.to_list(result)
 }
 
@@ -46,7 +49,7 @@ pub fn append_preserves_order_test() {
   let left = NonEmptyList(first: "a", rest: ["b"])
   let right = NonEmptyList(first: "c", rest: ["d"])
   let assert ["a", "b", "c", "d"] =
-    non_empty_list.to_list(non_empty_list.append(left, right))
+    non_empty_list.to_list(non_empty_list.append(left: left, right: right))
 }
 
 // --- concat ---

@@ -15,6 +15,9 @@ format-check:
 typecheck:
   gleam check
 
+lint:
+  gleam run -m glinter
+
 build:
   gleam build --warnings-as-errors
 
@@ -26,6 +29,7 @@ docs:
 
 check:
   gleam format --check .
+  gleam run -m glinter
   gleam check
   gleam build --warnings-as-errors
   gleam test

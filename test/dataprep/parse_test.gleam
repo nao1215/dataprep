@@ -70,8 +70,11 @@ pub fn int_then_validate_test() {
   let result =
     parse.int("25", NotAnInteger)
     |> validated.and_then(
-      rules.min_int(0, TooSmall(0))
-      |> validator.both(rules.max_int(100, TooBig(100))),
+      rules.min_int(minimum: 0, error: TooSmall(0))
+      |> validator.both(
+        first: _,
+        second: rules.max_int(maximum: 100, error: TooBig(100)),
+      ),
     )
   let assert Valid(25) = result
 }
@@ -80,6 +83,7 @@ pub fn int_parse_fail_short_circuits_test() {
   let result =
     parse.int("abc", NotAnInteger)
     |> validated.and_then(fn(_) {
+      // nolint: avoid_panic -- verifies parse failure short-circuits validation
       panic as "should not reach validation after parse failure"
     })
   let assert Invalid(nel) = result
@@ -89,7 +93,7 @@ pub fn int_parse_fail_short_circuits_test() {
 pub fn int_then_validate_out_of_range_test() {
   let result =
     parse.int("200", NotAnInteger)
-    |> validated.and_then(rules.max_int(100, TooBig(100)))
+    |> validated.and_then(rules.max_int(maximum: 100, error: TooBig(100)))
   let assert Invalid(nel) = result
   let assert [TooBig(100)] = non_empty_list.to_list(nel)
 }

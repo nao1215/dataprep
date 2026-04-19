@@ -43,25 +43,30 @@ pub fn not_blank_pass_with_content_test() {
 
 pub fn matches_pass_test() {
   let assert Ok(re) = regexp.from_string("^[a-z0-9]+$")
-  let assert Valid("abc123") = rules.matches(re, BadFormat)("abc123")
+  let assert Valid("abc123") =
+    rules.matches(pattern: re, error: BadFormat)("abc123")
 }
 
 pub fn matches_fail_test() {
   let assert Ok(re) = regexp.from_string("^[a-z]+$")
-  let assert Invalid(nel) = rules.matches(re, BadFormat)("abc123")
+  let assert Invalid(nel) =
+    rules.matches(pattern: re, error: BadFormat)("abc123")
   let assert [BadFormat] = non_empty_list.to_list(nel)
 }
 
 pub fn matches_empty_string_test() {
   let assert Ok(re) = regexp.from_string("^.+$")
-  let assert Invalid(_) = rules.matches(re, BadFormat)("")
+  let assert Invalid(_) = rules.matches(pattern: re, error: BadFormat)("")
 }
 
 pub fn matches_with_guard_test() {
   let assert Ok(re) = regexp.from_string("^[a-z]+$")
   let v =
     rules.not_empty(IsBlank)
-    |> validator.guard(rules.matches(re, BadFormat))
+    |> validator.guard(
+      pre: _,
+      main: rules.matches(pattern: re, error: BadFormat),
+    )
   let assert Invalid(nel) = v("")
   let assert [IsBlank] = non_empty_list.to_list(nel)
   let assert Invalid(nel2) = v("ABC")
@@ -72,55 +77,69 @@ pub fn matches_with_guard_test() {
 // --- length_between ---
 
 pub fn length_between_pass_test() {
-  let assert Valid("abc") = rules.length_between(2, 5, BadLength)("abc")
+  let assert Valid("abc") =
+    rules.length_between(minimum: 2, maximum: 5, error: BadLength)("abc")
 }
 
 pub fn length_between_exact_min_test() {
-  let assert Valid("ab") = rules.length_between(2, 5, BadLength)("ab")
+  let assert Valid("ab") =
+    rules.length_between(minimum: 2, maximum: 5, error: BadLength)("ab")
 }
 
 pub fn length_between_exact_max_test() {
-  let assert Valid("abcde") = rules.length_between(2, 5, BadLength)("abcde")
+  let assert Valid("abcde") =
+    rules.length_between(minimum: 2, maximum: 5, error: BadLength)("abcde")
 }
 
 pub fn length_between_fail_short_test() {
-  let assert Invalid(_) = rules.length_between(2, 5, BadLength)("a")
+  let assert Invalid(_) =
+    rules.length_between(minimum: 2, maximum: 5, error: BadLength)("a")
 }
 
 pub fn length_between_fail_long_test() {
-  let assert Invalid(_) = rules.length_between(2, 5, BadLength)("abcdef")
+  let assert Invalid(_) =
+    rules.length_between(minimum: 2, maximum: 5, error: BadLength)("abcdef")
 }
 
 // --- min_float / max_float ---
 
 pub fn min_float_pass_test() {
-  let assert Valid(1.5) = rules.min_float(1.0, TooSmallFloat)(1.5)
+  let assert Valid(1.5) =
+    rules.min_float(minimum: 1.0, error: TooSmallFloat)(1.5)
 }
 
 pub fn min_float_boundary_test() {
-  let assert Valid(1.0) = rules.min_float(1.0, TooSmallFloat)(1.0)
+  let assert Valid(1.0) =
+    rules.min_float(minimum: 1.0, error: TooSmallFloat)(1.0)
 }
 
 pub fn min_float_fail_test() {
-  let assert Invalid(_) = rules.min_float(1.0, TooSmallFloat)(0.5)
+  let assert Invalid(_) =
+    rules.min_float(minimum: 1.0, error: TooSmallFloat)(0.5)
 }
 
 pub fn max_float_pass_test() {
-  let assert Valid(5.0) = rules.max_float(10.0, TooBigFloat)(5.0)
+  let assert Valid(5.0) =
+    rules.max_float(maximum: 10.0, error: TooBigFloat)(5.0)
 }
 
 pub fn max_float_boundary_test() {
-  let assert Valid(10.0) = rules.max_float(10.0, TooBigFloat)(10.0)
+  let assert Valid(10.0) =
+    rules.max_float(maximum: 10.0, error: TooBigFloat)(10.0)
 }
 
 pub fn max_float_fail_test() {
-  let assert Invalid(_) = rules.max_float(10.0, TooBigFloat)(10.1)
+  let assert Invalid(_) =
+    rules.max_float(maximum: 10.0, error: TooBigFloat)(10.1)
 }
 
 pub fn min_max_float_combined_test() {
   let v =
-    rules.min_float(0.0, TooSmallFloat)
-    |> validator.both(rules.max_float(100.0, TooBigFloat))
+    rules.min_float(minimum: 0.0, error: TooSmallFloat)
+    |> validator.both(
+      first: _,
+      second: rules.max_float(maximum: 100.0, error: TooBigFloat),
+    )
   let assert Valid(50.0) = v(50.0)
   let assert Invalid(_) = v(-0.1)
   let assert Invalid(_) = v(100.1)

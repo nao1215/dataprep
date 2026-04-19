@@ -73,6 +73,7 @@ pub fn and_then_short_circuits_test() {
   let result =
     Invalid(non_empty_list.single("first"))
     |> validated.and_then(fn(_) {
+      // nolint: avoid_panic -- verifies and_then short-circuits on Invalid
       panic as "and_then must not call continuation on Invalid"
     })
   let assert Invalid(NonEmptyList(first: "first", rest: [])) = result
@@ -84,7 +85,7 @@ pub fn and_then_type_change_test() {
     |> validated.and_then(fn(s) {
       case int.parse(s) {
         Ok(n) -> Valid(n)
-        Error(_) -> Invalid(non_empty_list.single("not an int"))
+        Error(Nil) -> Invalid(non_empty_list.single("not an int"))
       }
     })
   let assert Valid(42) = result
@@ -96,7 +97,7 @@ pub fn and_then_chained_test() {
     |> validated.and_then(fn(s) {
       case int.parse(s) {
         Ok(n) -> Valid(n)
-        Error(_) -> Invalid(non_empty_list.single("parse"))
+        Error(Nil) -> Invalid(non_empty_list.single("parse"))
       }
     })
     |> validated.and_then(fn(n) {
@@ -116,6 +117,7 @@ pub fn and_then_does_not_accumulate_test() {
       Invalid(non_empty_list.single("parse failed"))
     })
     |> validated.and_then(fn(_) {
+      // nolint: avoid_panic -- verifies later and_then stages are skipped
       panic as "should not be called after first and_then fails"
     })
   let assert Invalid(NonEmptyList(first: "parse failed", rest: [])) = result

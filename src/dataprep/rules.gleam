@@ -27,24 +27,31 @@ pub fn not_blank(error: e) -> Validator(String, e) {
 ///
 /// Example:
 ///   let assert Ok(re) = regexp.from_string("^[a-z]+$")
-///   rules.matches(re, InvalidFormat)
+///   rules.matches(pattern: re, error: InvalidFormat)
 ///
-pub fn matches(re: regexp.Regexp, error: e) -> Validator(String, e) {
+pub fn matches(
+  pattern re: regexp.Regexp,
+  error error: e,
+) -> Validator(String, e) {
   validator.predicate(fn(s) { regexp.check(re, s) }, error)
 }
 
 /// Fails if the string length is less than min.
-pub fn min_length(min: Int, error: e) -> Validator(String, e) {
+pub fn min_length(minimum min: Int, error error: e) -> Validator(String, e) {
   validator.predicate(fn(s) { string.length(s) >= min }, error)
 }
 
 /// Fails if the string length exceeds max.
-pub fn max_length(max: Int, error: e) -> Validator(String, e) {
+pub fn max_length(maximum max: Int, error error: e) -> Validator(String, e) {
   validator.predicate(fn(s) { string.length(s) <= max }, error)
 }
 
 /// Fails if the string length is outside [min, max].
-pub fn length_between(min: Int, max: Int, error: e) -> Validator(String, e) {
+pub fn length_between(
+  minimum min: Int,
+  maximum max: Int,
+  error error: e,
+) -> Validator(String, e) {
   validator.predicate(
     fn(s) {
       let len = string.length(s)
@@ -55,22 +62,22 @@ pub fn length_between(min: Int, max: Int, error: e) -> Validator(String, e) {
 }
 
 /// Fails if the int is less than min.
-pub fn min_int(min: Int, error: e) -> Validator(Int, e) {
+pub fn min_int(minimum min: Int, error error: e) -> Validator(Int, e) {
   validator.predicate(fn(n) { n >= min }, error)
 }
 
 /// Fails if the int exceeds max.
-pub fn max_int(max: Int, error: e) -> Validator(Int, e) {
+pub fn max_int(maximum max: Int, error error: e) -> Validator(Int, e) {
   validator.predicate(fn(n) { n <= max }, error)
 }
 
 /// Fails if the float is less than min.
-pub fn min_float(min: Float, error: e) -> Validator(Float, e) {
+pub fn min_float(minimum min: Float, error error: e) -> Validator(Float, e) {
   validator.predicate(fn(x) { x >=. min }, error)
 }
 
 /// Fails if the float exceeds max.
-pub fn max_float(max: Float, error: e) -> Validator(Float, e) {
+pub fn max_float(maximum max: Float, error error: e) -> Validator(Float, e) {
   validator.predicate(fn(x) { x <=. max }, error)
 }
 
@@ -85,12 +92,12 @@ pub fn non_negative_float(error: e) -> Validator(Float, e) {
 }
 
 /// Fails if the value is not in the allowed list.
-pub fn one_of(allowed: List(a), error: e) -> Validator(a, e) {
+pub fn one_of(allowed allowed: List(a), error error: e) -> Validator(a, e) {
   validator.predicate(fn(a) { list.contains(allowed, a) }, error)
 }
 
 /// Fails if the value does not equal the expected value.
-pub fn equals(expected: a, error: e) -> Validator(a, e) {
+pub fn equals(expected expected: a, error error: e) -> Validator(a, e) {
   validator.predicate(fn(a) { a == expected }, error)
 }
 

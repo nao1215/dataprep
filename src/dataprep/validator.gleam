@@ -30,13 +30,17 @@ pub fn predicate(condition: fn(a) -> Bool, error: e) -> Validator(a, e) {
 
 /// Run both validators on the same input. Accumulate all errors.
 /// On success, return the (unchanged) input.
-pub fn both(v1: Validator(a, e), v2: Validator(a, e)) -> Validator(a, e) {
+pub fn both(
+  first v1: Validator(a, e),
+  second v2: Validator(a, e),
+) -> Validator(a, e) {
   fn(a) {
     case v1(a), v2(a) {
       Valid(_), Valid(_) -> Valid(a)
       Valid(_), Invalid(e2) -> Invalid(e2)
       Invalid(e1), Valid(_) -> Invalid(e1)
-      Invalid(e1), Invalid(e2) -> Invalid(non_empty_list.append(e1, e2))
+      Invalid(e1), Invalid(e2) ->
+        Invalid(non_empty_list.append(left: e1, right: e2))
     }
   }
 }
@@ -72,14 +76,17 @@ pub fn all(validators: List(Validator(a, e))) -> Validator(a, e) {
 /// The accumulated errors can be noisy for end-user display.
 /// Use `map_error` to tag each branch before `alt`, then
 /// post-process the error list before presenting to users.
-pub fn alt(v1: Validator(a, e), v2: Validator(a, e)) -> Validator(a, e) {
+pub fn alt(
+  first v1: Validator(a, e),
+  second v2: Validator(a, e),
+) -> Validator(a, e) {
   fn(a) {
     case v1(a) {
       Valid(x) -> Valid(x)
       Invalid(e1) ->
         case v2(a) {
           Valid(x) -> Valid(x)
-          Invalid(e2) -> Invalid(non_empty_list.append(e1, e2))
+          Invalid(e2) -> Invalid(non_empty_list.append(left: e1, right: e2))
         }
     }
   }
@@ -92,7 +99,10 @@ pub fn alt(v1: Validator(a, e), v2: Validator(a, e)) -> Validator(a, e) {
 /// Evaluation: pre runs first. If Valid, main runs on the same
 /// input. If pre fails, main is never called and only pre's errors
 /// are returned. Errors are NOT accumulated across pre and main.
-pub fn guard(pre: Validator(a, e), main: Validator(a, e)) -> Validator(a, e) {
+pub fn guard(
+  pre pre: Validator(a, e),
+  main main: Validator(a, e),
+) -> Validator(a, e) {
   fn(a) {
     case pre(a) {
       Valid(_) -> main(a)

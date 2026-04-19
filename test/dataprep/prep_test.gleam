@@ -87,20 +87,20 @@ pub fn collapse_space_tabs_and_newlines_test() {
 // --- replace ---
 
 pub fn replace_test() {
-  let p = prep.replace("-", "_")
+  let p = prep.replace(target: "-", replacement: "_")
   let assert "foo_bar_baz" = p("foo-bar-baz")
 }
 
 pub fn replace_no_match_test() {
-  let assert "hello" = prep.replace("-", "_")("hello")
+  let assert "hello" = prep.replace(target: "-", replacement: "_")("hello")
 }
 
 pub fn replace_absent_target_test() {
-  let assert "hello" = prep.replace("x", "y")("hello")
+  let assert "hello" = prep.replace(target: "x", replacement: "y")("hello")
 }
 
 pub fn replace_to_empty_test() {
-  let assert "hllo" = prep.replace("e", "")("hello")
+  let assert "hllo" = prep.replace(target: "e", replacement: "")("hello")
 }
 
 // --- default ---
@@ -123,25 +123,25 @@ pub fn default_whitespace_only_test() {
 // --- then (composition) ---
 
 pub fn then_test() {
-  let p = prep.trim() |> prep.then(prep.lowercase())
+  let p = prep.trim() |> prep.then(first: _, next: prep.lowercase())
   let assert "hello" = p("  HELLO  ")
 }
 
 pub fn then_order_matters_test() {
   // trim then default("X") -> "  " becomes "" becomes "X"
-  let p1 = prep.trim() |> prep.then(prep.default("X"))
+  let p1 = prep.trim() |> prep.then(first: _, next: prep.default("X"))
   let assert "X" = p1("  ")
 
   // default("X") then trim -> "  " is not "", so default is no-op, then trim -> ""
-  let p2 = prep.default("X") |> prep.then(prep.trim())
+  let p2 = prep.default("X") |> prep.then(first: _, next: prep.trim())
   let assert "" = p2("  ")
 }
 
 pub fn then_three_steps_test() {
   let p =
     prep.trim()
-    |> prep.then(prep.lowercase())
-    |> prep.then(prep.collapse_space())
+    |> prep.then(first: _, next: prep.lowercase())
+    |> prep.then(first: _, next: prep.collapse_space())
   let assert "hello world" = p("  Hello   World  ")
 }
 
@@ -165,7 +165,7 @@ pub fn sequence_single_test() {
 // --- composition patterns ---
 
 pub fn trim_then_default_test() {
-  let p = prep.trim() |> prep.then(prep.default("N/A"))
+  let p = prep.trim() |> prep.then(first: _, next: prep.default("N/A"))
   let assert "N/A" = p("   ")
   let assert "hello" = p("hello")
   let assert "N/A" = p("")
@@ -177,7 +177,7 @@ pub fn full_pipeline_test() {
       prep.trim(),
       prep.lowercase(),
       prep.collapse_space(),
-      prep.replace(".", ""),
+      prep.replace(target: ".", replacement: ""),
     ])
   let assert "john doe jr" = clean("  John.  DOE.  Jr  ")
 }
