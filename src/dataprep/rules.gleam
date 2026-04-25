@@ -22,18 +22,57 @@ pub fn not_blank(error: e) -> Validator(String, e) {
 }
 
 /// Fails if the string does not match the given regular expression.
-/// Takes a pre-compiled `Regexp` to avoid runtime crashes from
-/// invalid patterns.
+/// Takes a pre-compiled `Regexp` so a malformed pattern surfaces as a
+/// `regexp.from_string` error at the call site instead of crashing
+/// inside the validator.
 ///
 /// Example:
-///   let assert Ok(re) = regexp.from_string("^[a-z]+$")
-///   rules.matches(pattern: re, error: InvalidFormat)
+///   import gleam/regexp
+///   import dataprep/rules
 ///
+///   let assert Ok(re) = regexp.from_string("^[a-z]+$")
+///   let check = rules.matches(pattern: re, error: InvalidFormat)
+///
+/// For literal patterns where propagating a compile error to the
+/// caller is not useful, see `matches_string`.
 pub fn matches(
   pattern re: regexp.Regexp,
   error error: e,
 ) -> Validator(String, e) {
   validator.predicate(fn(s) { regexp.check(re, s) }, error)
+}
+
+/// Fails if the string does not match the given regular expression
+/// pattern. Compiles the pattern internally; an invalid pattern
+/// panics at construction time with the underlying compile error.
+///
+/// Use this when the pattern is a literal known at the call site
+/// and a compile failure would be a programmer error there is no
+/// meaningful recovery from. For dynamically-supplied patterns,
+/// use `matches` together with `regexp.from_string` so the
+/// `Result` is visible.
+///
+/// Example:
+///   import dataprep/rules
+///
+///   let check = rules.matches_string(
+///     pattern: "^[a-z0-9-]+$",
+///     error: InvalidFormat,
+///   )
+pub fn matches_string(
+  pattern pattern: String,
+  error error: e,
+) -> Validator(String, e) {
+  case regexp.from_string(pattern) {
+    Ok(re) -> matches(pattern: re, error: error)
+    Error(compile_error) -> {
+      let msg =
+        "dataprep/rules.matches_string: invalid pattern — "
+        <> compile_error.error
+      // nolint: avoid_panic -- malformed literal regex is a programmer error; recovery is not meaningful at this call site
+      panic as msg
+    }
+  }
 }
 
 /// Fails if the string length is less than min.

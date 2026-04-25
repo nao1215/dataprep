@@ -202,6 +202,44 @@ pub fn validate_signup(
 //      ])
 ```
 
+### Pattern matching with `rules.matches` / `matches_string`
+
+Use `matches` when the regex is dynamic (built from user input or
+config) — the `regexp.from_string` `Result` stays visible. Use
+`matches_string` when the pattern is a literal at the call site:
+the helper compiles internally and panics on a malformed literal,
+which is a programmer error there is no useful recovery from.
+
+```gleam
+import dataprep/rules
+import dataprep/validated.{type Validated}
+import gleam/regexp
+import gleam/result
+
+pub type TagError {
+  BadFormat
+}
+
+// Literal pattern — the convenience helper compiles once at
+// construction. No `let assert Ok(_)` boilerplate at the call site.
+pub fn validate_tag(raw: String) -> Validated(String, TagError) {
+  let check = rules.matches_string(pattern: "^[a-z0-9-]+$", error: BadFormat)
+  check(raw)
+}
+
+// Dynamic pattern — the caller controls the compile error.
+pub fn validate_with(
+  raw: String,
+  pattern: String,
+) -> Result(Validated(String, TagError), regexp.CompileError) {
+  use re <- result.map(regexp.from_string(pattern))
+  rules.matches(pattern: re, error: BadFormat)(raw)
+}
+
+// validate_tag("ok-1") -> Valid("ok-1")
+// validate_tag("BAD!") -> Invalid([BadFormat])
+```
+
 More examples are available in the [doc/recipes/](https://github.com/nao1215/dataprep/tree/main/doc/recipes) directory of the repository.
 
 ## Modules
@@ -212,7 +250,7 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | `dataprep/validator` | Checks without transformation: `check`, `predicate`, `both`, `all`, `alt`, `guard`, `map_error`, `label`, `each`, `optional`. |
 | `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `from_result_map`, `to_result`, `map2`..`map5`, `sequence`, `traverse`, `traverse_indexed`. |
 | `dataprep/non_empty_list` | At-least-one guarantee for error lists: `single`, `cons`, `append`, `concat`, `map`, `flat_map`, `to_list`, `from_list`. |
-| `dataprep/rules` | Built-in rules: `not_empty`, `not_blank`, `matches`, `min_length`, `max_length`, `length_between`, `min_int`, `max_int`, `min_float`, `max_float`, `non_negative_int`, `non_negative_float`, `one_of`, `equals`. |
+| `dataprep/rules` | Built-in rules: `not_empty`, `not_blank`, `matches`, `matches_string`, `min_length`, `max_length`, `length_between`, `min_int`, `max_int`, `min_float`, `max_float`, `non_negative_int`, `non_negative_float`, `one_of`, `equals`. |
 | `dataprep/parse` | Parse helpers: `int`, `float`. Bridge `String` to typed `Validated` with custom error mapping. |
 
 ## Composition overview
