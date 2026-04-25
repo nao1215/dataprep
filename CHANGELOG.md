@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-25
+
 ### Changed
 
 - `parse.float` is no longer strictly bound to `gleam/float.parse`.
