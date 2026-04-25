@@ -19,6 +19,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `rules.matches_fully(pattern: regexp.Regexp, error)` and
+  `rules.matches_fully_string(pattern: String, error)` rules that
+  require the regex to match the **entire** input string. Unlike
+  `matches` / `matches_string` (which inherit `regexp.check`'s
+  substring semantics and would accept `"abc123def"` for a digit
+  pattern), the `_fully` variants compare the matched span against
+  the full input. The `matches` / `matches_string` docstrings were
+  also rewritten to call out the substring footgun loudly. This is
+  the validation-friendly default most callers actually wanted. (#7)
 - `rules.matches_string(pattern: String, error)` convenience that
   compiles the pattern internally and panics on a malformed literal.
   Lets callers with strict glinter settings (`assert_ok_pattern =
