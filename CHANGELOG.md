@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `parse.float` is no longer strictly bound to `gleam/float.parse`.
+  It now also accepts integer literals (`"5"` → `5.0`), so the
+  asymmetry with `parse.int` no longer surprises callers who pass a
+  user-typed numeric value, and accepts scientific notation
+  (`"1e3"`, `"1.5e-2"`, `"5E3"`). Inputs the bare stdlib already
+  accepted continue to parse identically; the failure path is
+  unchanged. (#6)
+
 ### Added
 
 - `rules.matches_string(pattern: String, error)` convenience that

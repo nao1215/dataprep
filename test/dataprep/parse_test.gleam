@@ -64,6 +64,53 @@ pub fn float_fail_empty_test() -> Nil {
     == Invalid(non_empty_list.single(NotAFloat("")))
 }
 
+// --- parse.float leniency: integer literals (#6) ---
+
+pub fn float_accepts_integer_literal_test() -> Nil {
+  assert parse.float("5", NotAFloat) == Valid(5.0)
+}
+
+pub fn float_accepts_negative_integer_literal_test() -> Nil {
+  assert parse.float("-7", NotAFloat) == Valid(-7.0)
+}
+
+pub fn float_accepts_zero_integer_literal_test() -> Nil {
+  assert parse.float("0", NotAFloat) == Valid(0.0)
+}
+
+// --- parse.float leniency: scientific notation (#6) ---
+
+pub fn float_accepts_scientific_no_decimal_test() -> Nil {
+  assert parse.float("1e3", NotAFloat) == Valid(1000.0)
+}
+
+pub fn float_accepts_scientific_with_decimal_test() -> Nil {
+  assert parse.float("1.5e-2", NotAFloat) == Valid(0.015)
+}
+
+pub fn float_accepts_scientific_uppercase_e_test() -> Nil {
+  assert parse.float("5E3", NotAFloat) == Valid(5000.0)
+}
+
+pub fn float_accepts_scientific_negative_mantissa_test() -> Nil {
+  assert parse.float("-2e2", NotAFloat) == Valid(-200.0)
+}
+
+pub fn float_rejects_scientific_missing_exponent_test() -> Nil {
+  assert parse.float("5e", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("5e")))
+}
+
+pub fn float_rejects_scientific_non_integer_exponent_test() -> Nil {
+  assert parse.float("1e1.5", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("1e1.5")))
+}
+
+pub fn float_rejects_garbage_with_e_test() -> Nil {
+  assert parse.float("abc", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("abc")))
+}
+
 // --- parse + validate pipeline ---
 
 pub fn int_then_validate_test() -> Nil {
