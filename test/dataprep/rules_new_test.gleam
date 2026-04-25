@@ -104,6 +104,87 @@ pub fn matches_string_validator_is_reusable_test() -> Nil {
   assert check("ABC") == Invalid(non_empty_list.single(BadFormat))
 }
 
+// --- unanchored matches ---
+//
+// `matches` documents that it is `regexp.check`-shaped: a substring
+// hit is enough. These tests pin that contract so a regression that
+// silently anchors the predicate would fail loudly.
+
+pub fn matches_unanchored_pattern_accepts_substring_hit_test() -> Nil {
+  let pattern = compile_regexp("[0-9]+")
+  assert rules.matches(pattern: pattern, error: BadFormat)("abc123def")
+    == Valid("abc123def")
+}
+
+pub fn matches_string_unanchored_pattern_accepts_substring_hit_test() -> Nil {
+  assert rules.matches_string(pattern: "[0-9]+", error: BadFormat)("abc123def")
+    == Valid("abc123def")
+}
+
+// --- matches_fully ---
+
+pub fn matches_fully_full_match_passes_test() -> Nil {
+  let pattern = compile_regexp("[0-9]+")
+  assert rules.matches_fully(pattern: pattern, error: BadFormat)("123")
+    == Valid("123")
+}
+
+pub fn matches_fully_substring_hit_is_rejected_test() -> Nil {
+  let pattern = compile_regexp("[0-9]+")
+  assert rules.matches_fully(pattern: pattern, error: BadFormat)("abc123def")
+    == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_no_match_at_all_is_rejected_test() -> Nil {
+  let pattern = compile_regexp("[0-9]+")
+  assert rules.matches_fully(pattern: pattern, error: BadFormat)("abc")
+    == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_already_anchored_pattern_still_works_test() -> Nil {
+  // Patterns that already anchor with ^...$ continue to work — the
+  // anchors just become redundant under `matches_fully`.
+  let pattern = compile_regexp("^[a-z]+$")
+  assert rules.matches_fully(pattern: pattern, error: BadFormat)("abc")
+    == Valid("abc")
+  assert rules.matches_fully(pattern: pattern, error: BadFormat)("abc1")
+    == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_empty_input_with_star_pattern_test() -> Nil {
+  // `.*` matches the empty string, and the empty match equals the
+  // empty input — full-match semantics.
+  let pattern = compile_regexp(".*")
+  assert rules.matches_fully(pattern: pattern, error: BadFormat)("")
+    == Valid("")
+}
+
+pub fn matches_fully_empty_input_with_plus_pattern_test() -> Nil {
+  // `.+` requires at least one character; the empty input has no
+  // match at all and is rejected.
+  let pattern = compile_regexp(".+")
+  assert rules.matches_fully(pattern: pattern, error: BadFormat)("")
+    == Invalid(non_empty_list.single(BadFormat))
+}
+
+// --- matches_fully_string ---
+
+pub fn matches_fully_string_pass_test() -> Nil {
+  assert rules.matches_fully_string(pattern: "[a-z0-9-]+", error: BadFormat)(
+      "ok-1",
+    )
+    == Valid("ok-1")
+}
+
+pub fn matches_fully_string_substring_hit_is_rejected_test() -> Nil {
+  // The headline #7 case: literal pattern + substring match must be
+  // rejected by the _fully variant.
+  assert rules.matches_fully_string(pattern: "[0-9]+", error: BadFormat)(
+      "abc123def",
+    )
+    == Invalid(non_empty_list.single(BadFormat))
+}
+
 // --- length_between ---
 
 pub fn length_between_pass_test() -> Nil {
