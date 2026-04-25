@@ -69,6 +69,7 @@ pub fn matches_string(
       let msg =
         "dataprep/rules.matches_string: invalid pattern — "
         <> compile_error.error
+      // nolint: avoid_panic -- malformed literal regex is a programmer error; recovery is not meaningful at this call site
       panic as msg
     }
   }

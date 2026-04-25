@@ -50,9 +50,3 @@ unwrap_used = "error"
 
 [tools.glinter.ignore]
 "test/**/*.gleam" = ["unused_exports"]
-# `rules.matches_string` panics at construction time when the
-# inline pattern fails to compile (#5): the only sensible response
-# to a programmer error in a literal regex is to crash, matching
-# the rationale already documented for the `matches` / `matches_string`
-# split.
-"src/dataprep/rules.gleam" = ["avoid_panic"]

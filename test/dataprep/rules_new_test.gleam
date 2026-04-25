@@ -95,9 +95,10 @@ pub fn matches_string_fail_test() -> Nil {
     == Invalid(non_empty_list.single(BadFormat))
 }
 
-pub fn matches_string_compiles_pattern_once_test() -> Nil {
-  // The returned validator is reusable; compilation happens once at
-  // construction, not per element.
+pub fn matches_string_validator_is_reusable_test() -> Nil {
+  // The returned validator can be applied repeatedly. The test
+  // observes reuse, not compile-call counts (the helper compiles at
+  // construction by contract, not by what this test inspects).
   let check = rules.matches_string(pattern: "^[a-z]+$", error: BadFormat)
   assert check("abc") == Valid("abc")
   assert check("ABC") == Invalid(non_empty_list.single(BadFormat))

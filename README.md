@@ -213,8 +213,8 @@ which is a programmer error there is no useful recovery from.
 ```gleam
 import dataprep/rules
 import dataprep/validated.{type Validated}
-import dataprep/validator
 import gleam/regexp
+import gleam/result
 
 pub type TagError {
   BadFormat
