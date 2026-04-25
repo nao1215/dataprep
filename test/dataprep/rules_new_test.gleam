@@ -81,6 +81,28 @@ pub fn matches_with_guard_test() -> Nil {
   assert validator_under_test("abc") == Valid("abc")
 }
 
+// --- matches_string ---
+
+pub fn matches_string_pass_test() -> Nil {
+  assert rules.matches_string(pattern: "^[a-z0-9]+$", error: BadFormat)(
+      "abc123",
+    )
+    == Valid("abc123")
+}
+
+pub fn matches_string_fail_test() -> Nil {
+  assert rules.matches_string(pattern: "^[a-z]+$", error: BadFormat)("abc123")
+    == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_string_compiles_pattern_once_test() -> Nil {
+  // The returned validator is reusable; compilation happens once at
+  // construction, not per element.
+  let check = rules.matches_string(pattern: "^[a-z]+$", error: BadFormat)
+  assert check("abc") == Valid("abc")
+  assert check("ABC") == Invalid(non_empty_list.single(BadFormat))
+}
+
 // --- length_between ---
 
 pub fn length_between_pass_test() -> Nil {

@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- `rules.matches_string(pattern: String, error)` convenience that
+  compiles the pattern internally and panics on a malformed literal.
+  Lets callers with strict glinter settings (`assert_ok_pattern =
+  "error"`) use literal regex patterns without a `let assert
+  Ok(_)` workaround. Dynamic patterns still flow through the
+  existing `matches` + `regexp.from_string` pair so the compile
+  error stays observable. (#5)
+- README example demonstrating both `matches` (dynamic pattern,
+  caller-handled `Result`) and `matches_string` (literal pattern)
+  so first-time users see the compile step that the previous
+  README hid.
+
 ## [0.2.0] - 2026-04-05
 
 ### Added
