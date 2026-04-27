@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- Document the vacuously-unsatisfiable edge cases on `rules.one_of` and
+  `rules.length_between`. `rules.one_of([], error)` and
+  `rules.length_between(min, max, error)` with `min > max` always return
+  `Invalid(error)` for any input — the rule constructors stay pure (no
+  panic, no API break) but the docstrings now flag these as programmer
+  errors and recommend guarding the bounds at the call site when the
+  allowlist or range comes from configuration. Add `length_between` test
+  coverage including a `min > max` regression case so the documented
+  behavior is pinned. (#18)
+
 ## [0.4.0] - 2026-04-27
 
 ### Added

@@ -91,6 +91,61 @@ pub fn max_length_empty_string_test() -> Nil {
   assert rules.max_length(maximum: 0, error: TooLong(0))("") == Valid("")
 }
 
+// --- length_between ---
+
+pub fn length_between_pass_test() -> Nil {
+  assert rules.length_between(minimum: 3, maximum: 10, error: TooShort(3))(
+      "hello",
+    )
+    == Valid("hello")
+}
+
+pub fn length_between_below_min_test() -> Nil {
+  assert case
+    rules.length_between(minimum: 3, maximum: 10, error: TooShort(3))("ab")
+  {
+    Invalid(_) -> True
+    Valid(_) -> False
+  }
+}
+
+pub fn length_between_above_max_test() -> Nil {
+  assert case
+    rules.length_between(minimum: 3, maximum: 10, error: TooLong(10))(
+      "abcdefghijk",
+    )
+  {
+    Invalid(_) -> True
+    Valid(_) -> False
+  }
+}
+
+pub fn length_between_exact_boundaries_test() -> Nil {
+  let between = rules.length_between(minimum: 3, maximum: 5, error: TooShort(3))
+  assert between("abc") == Valid("abc")
+  assert between("abcde") == Valid("abcde")
+}
+
+pub fn length_between_min_greater_than_max_always_fails_test() -> Nil {
+  // Issue #18 — `min > max` defines an empty interval. This test pins the
+  // documented "vacuously fails for any input" behavior so a future
+  // refactor cannot silently change it without surfacing the failure.
+  let between =
+    rules.length_between(minimum: 10, maximum: 3, error: TooShort(10))
+  assert case between("hello") {
+    Invalid(_) -> True
+    Valid(_) -> False
+  }
+  assert case between("") {
+    Invalid(_) -> True
+    Valid(_) -> False
+  }
+  assert case between("a string of any length") {
+    Invalid(_) -> True
+    Valid(_) -> False
+  }
+}
+
 // --- min_int ---
 
 pub fn min_int_pass_test() -> Nil {
