@@ -2,6 +2,17 @@ import dataprep/non_empty_list.{NonEmptyList}
 import dataprep/validated.{Invalid, Valid}
 import gleam/int
 
+// --- fail ---
+
+pub fn fail_returns_invalid_with_single_error_test() -> Nil {
+  let result: validated.Validated(String, String) = validated.fail("oops")
+  assert result == Invalid(NonEmptyList(first: "oops", rest: []))
+}
+
+pub fn fail_is_equivalent_to_manual_construction_test() -> Nil {
+  assert validated.fail(42) == Invalid(non_empty_list.single(42))
+}
+
 // --- map ---
 
 pub fn map_valid_test() -> Nil {

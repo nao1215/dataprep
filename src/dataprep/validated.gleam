@@ -7,6 +7,14 @@ pub type Validated(a, e) {
   Invalid(non_empty_list.NonEmptyList(e))
 }
 
+/// Construct an Invalid result from a single error.
+///
+/// Convenience for the common pattern of failing with one error without
+/// manually importing `non_empty_list`.
+pub fn fail(error: e) -> Validated(a, e) {
+  Invalid(non_empty_list.single(error))
+}
+
 /// Transform the success value (functor map).
 pub fn map(v: Validated(a, e), f: fn(a) -> b) -> Validated(b, e) {
   case v {
