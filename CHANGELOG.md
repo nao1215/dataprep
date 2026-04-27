@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-27
+
+### Added
+
+- `validated.fail(error)` convenience function for constructing an `Invalid`
+  result from a single error without importing `non_empty_list`. (#13)
+
+### Documentation
+
+- Clarify in README that rules return validator functions and must be composed
+  with `validator.both`/`validator.guard`, not piped directly. (#14)
+
 ## [0.3.0] - 2026-04-25
 
 ### Changed
