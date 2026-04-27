@@ -169,6 +169,15 @@ pub fn max_length(maximum max: Int, error error: e) -> Validator(String, e) {
 }
 
 /// Fails if the string length is outside [min, max].
+///
+/// Edge case — `min > max`: the resulting validator is vacuously
+/// unsatisfiable (no string length can be both `>= min` and `<= max`),
+/// so every input fails with `error`. This is a programmer error
+/// rather than a runtime condition; the library does not raise it
+/// because rule constructors are pure and never panic. Construct the
+/// rule yourself with a sane range, or guard the bounds at the call
+/// site (e.g., `case min <= max { True -> ...; False -> ... }`) when
+/// `min`/`max` come from configuration or other dynamic input.
 pub fn length_between(
   minimum min: Int,
   maximum max: Int,
@@ -214,6 +223,16 @@ pub fn non_negative_float(error: e) -> Validator(Float, e) {
 }
 
 /// Fails if the value is not in the allowed list.
+///
+/// Edge case — empty `allowed` list: a set-membership check against
+/// the empty set has no inhabitants, so every input fails with
+/// `error`. This is a programmer error rather than a runtime
+/// condition; the library does not raise it because rule constructors
+/// are pure and never panic. Either construct the rule with a
+/// non-empty allowlist, or guard at the call site (e.g.,
+/// `case allowed { [] -> ...; [_, ..] -> rules.one_of(allowed, e) }`)
+/// when the allowlist comes from configuration or other dynamic
+/// input.
 pub fn one_of(allowed allowed: List(a), error error: e) -> Validator(a, e) {
   validator.predicate(fn(a) { list.contains(allowed, a) }, error)
 }
