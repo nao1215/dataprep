@@ -59,6 +59,22 @@ pub fn validate_user(name: String, age: Int) -> Validated(User, Err) {
 // validate_user("", -1)           -> Invalid([NameEmpty, AgeTooYoung])
 ```
 
+> **Note on composing rules:** Each `rules.*` function returns a
+> *validator* (`fn(a) -> Validated(a, e)`), not a transformed value.
+> You cannot pipe one rule into another directly — use `validator.both`
+> to run checks in parallel (accumulating errors) or `validator.guard`
+> to short-circuit (skip later checks if an earlier one fails):
+>
+> ```gleam
+> // ✗ Won't compile — piping a validator fn into another rule
+> let check = rules.not_empty(Empty) |> rules.min_length(3, TooShort)
+>
+> // ✓ Correct — combine validators explicitly
+> let check =
+>   rules.not_empty(Empty)
+>   |> validator.guard(rules.min_length(3, TooShort))
+> ```
+
 ## Examples
 
 ### Field validation with structured error context
