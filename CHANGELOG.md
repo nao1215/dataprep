@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **non_empty_list (BREAKING)**: `NonEmptyList(a)` is now `pub opaque`.
+  Direct constructor calls like `NonEmptyList(first: x, rest: [...])`
+  and pattern matches on the `NonEmptyList` constructor no longer
+  compile. Construct via `non_empty_list.single`,
+  `non_empty_list.cons`, or `non_empty_list.from_list`; observe via
+  `non_empty_list.head`, `non_empty_list.tail`,
+  `non_empty_list.to_list`, or `non_empty_list.fold`. Hiding the
+  representation lets the internal layout evolve without a future
+  breaking change. (#26)
+
+### Added
+
+- `non_empty_list.head`, `non_empty_list.tail`, `non_empty_list.length`,
+  `non_empty_list.fold`, and `non_empty_list.reverse` accessors so
+  callers can observe a `NonEmptyList` without pattern matching.
+  `head` is total, `tail` returns a plain `List(a)` (possibly empty),
+  `length` is always `>= 1`, `fold` mirrors `gleam/list.fold` with
+  `from:` / `with:` labels, and `reverse` returns a `NonEmptyList(a)`.
+  (#26)
+- Module-level docstring on `dataprep/validated` clarifying that
+  `Validated(a, e)` is intentionally a transparent sum type and that
+  pattern matching on `Valid` / `Invalid` is the supported call
+  shape. (#26)
+
 ## [0.6.0] - 2026-04-28
 
 ### Changed

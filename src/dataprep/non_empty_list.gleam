@@ -1,6 +1,13 @@
+import gleam/list
+
 /// NonEmptyList guarantees at least one element.
 /// Used by Invalid to ensure every failure carries at least one error.
-pub type NonEmptyList(a) {
+///
+/// The type is opaque: callers construct values via `single` / `cons` /
+/// `from_list` and observe values via `head` / `tail` / `to_list` /
+/// `fold` / `length` / `reverse`. Hiding the constructor lets the
+/// internal representation evolve without a breaking release.
+pub opaque type NonEmptyList(a) {
   NonEmptyList(first: a, rest: List(a))
 }
 
@@ -59,4 +66,30 @@ pub fn from_list(l: List(a)) -> Result(NonEmptyList(a), Nil) {
   }
 }
 
-import gleam/list
+/// Return the first element. Total: a NonEmptyList always has one.
+pub fn head(nel: NonEmptyList(a)) -> a {
+  nel.first
+}
+
+/// Return everything after the first element as a plain List.
+/// May be empty when the NonEmptyList holds a single element.
+pub fn tail(nel: NonEmptyList(a)) -> List(a) {
+  nel.rest
+}
+
+/// Return the number of elements. Always >= 1.
+pub fn length(nel: NonEmptyList(a)) -> Int {
+  list.length(to_list(nel))
+}
+
+/// Fold over every item from an initial accumulator.
+pub fn fold(nel: NonEmptyList(a), from initial: b, with f: fn(b, a) -> b) -> b {
+  list.fold(over: to_list(nel), from: initial, with: f)
+}
+
+/// Reverse the order of elements. The result is itself a NonEmptyList.
+pub fn reverse(nel: NonEmptyList(a)) -> NonEmptyList(a) {
+  list.fold(over: nel.rest, from: single(nel.first), with: fn(acc, item) {
+    cons(head: item, tail: acc)
+  })
+}

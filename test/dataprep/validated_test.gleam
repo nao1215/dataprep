@@ -1,4 +1,5 @@
-import dataprep/non_empty_list.{NonEmptyList}
+import dataprep/helpers/nel
+import dataprep/non_empty_list
 import dataprep/validated.{Invalid, Valid}
 import gleam/int
 
@@ -6,7 +7,7 @@ import gleam/int
 
 pub fn fail_returns_invalid_with_single_error_test() -> Nil {
   let result: validated.Validated(String, String) = validated.fail("oops")
-  assert result == Invalid(NonEmptyList(first: "oops", rest: []))
+  assert result == Invalid(nel.make(first: "oops", rest: []))
 }
 
 pub fn fail_is_equivalent_to_manual_construction_test() -> Nil {
@@ -21,7 +22,7 @@ pub fn map_valid_test() -> Nil {
 
 pub fn map_invalid_test() -> Nil {
   assert Invalid(non_empty_list.single("err")) |> validated.map(fn(x) { x * 3 })
-    == Invalid(NonEmptyList(first: "err", rest: []))
+    == Invalid(nel.make(first: "err", rest: []))
 }
 
 pub fn map_type_change_test() -> Nil {
@@ -38,13 +39,13 @@ pub fn map_error_valid_test() -> Nil {
 pub fn map_error_invalid_test() -> Nil {
   assert Invalid(non_empty_list.single("bad"))
     |> validated.map_error(fn(e) { "wrapped: " <> e })
-    == Invalid(NonEmptyList(first: "wrapped: bad", rest: []))
+    == Invalid(nel.make(first: "wrapped: bad", rest: []))
 }
 
 pub fn map_error_multiple_errors_test() -> Nil {
-  assert Invalid(NonEmptyList(first: "a", rest: ["b"]))
+  assert Invalid(nel.make(first: "a", rest: ["b"]))
     |> validated.map_error(fn(e) { "x:" <> e })
-    == Invalid(NonEmptyList(first: "x:a", rest: ["x:b"]))
+    == Invalid(nel.make(first: "x:a", rest: ["x:b"]))
 }
 
 // --- and_then ---
@@ -68,7 +69,7 @@ pub fn and_then_valid_to_invalid_test() -> Nil {
         False -> Invalid(non_empty_list.single("too small"))
       }
     })
-    == Invalid(NonEmptyList(first: "too small", rest: []))
+    == Invalid(nel.make(first: "too small", rest: []))
 }
 
 pub fn and_then_short_circuits_test() -> Nil {
@@ -77,7 +78,7 @@ pub fn and_then_short_circuits_test() -> Nil {
       // nolint: avoid_panic -- verifies and_then short-circuits on Invalid
       panic as "and_then must not call continuation on Invalid"
     })
-    == Invalid(NonEmptyList(first: "first", rest: []))
+    == Invalid(nel.make(first: "first", rest: []))
 }
 
 pub fn and_then_type_change_test() -> Nil {
@@ -118,7 +119,7 @@ pub fn and_then_does_not_accumulate_test() -> Nil {
       // nolint: avoid_panic -- verifies later and_then stages are skipped
       panic as "should not be called after first and_then fails"
     })
-    == Invalid(NonEmptyList(first: "parse failed", rest: []))
+    == Invalid(nel.make(first: "parse failed", rest: []))
 }
 
 // --- from_result / to_result ---
@@ -129,7 +130,7 @@ pub fn from_result_ok_test() -> Nil {
 
 pub fn from_result_error_test() -> Nil {
   assert validated.from_result(Error("err"))
-    == Invalid(NonEmptyList(first: "err", rest: []))
+    == Invalid(nel.make(first: "err", rest: []))
 }
 
 pub fn to_result_valid_test() -> Nil {
@@ -137,7 +138,7 @@ pub fn to_result_valid_test() -> Nil {
 }
 
 pub fn to_result_invalid_test() -> Nil {
-  assert validated.to_result(Invalid(NonEmptyList(first: "a", rest: ["b"])))
+  assert validated.to_result(Invalid(nel.make(first: "a", rest: ["b"])))
     == Error(["a", "b"])
 }
 
@@ -162,7 +163,7 @@ pub fn map2_accumulates_errors_test() -> Nil {
       Invalid(non_empty_list.single("e1")),
       Invalid(non_empty_list.single("e2")),
     )
-    == Invalid(NonEmptyList(first: "e1", rest: ["e2"]))
+    == Invalid(nel.make(first: "e1", rest: ["e2"]))
 }
 
 pub fn map2_first_invalid_test() -> Nil {
@@ -171,7 +172,7 @@ pub fn map2_first_invalid_test() -> Nil {
       Invalid(non_empty_list.single("e1")),
       Valid(2),
     )
-    == Invalid(NonEmptyList(first: "e1", rest: []))
+    == Invalid(nel.make(first: "e1", rest: []))
 }
 
 pub fn map2_second_invalid_test() -> Nil {
@@ -180,16 +181,16 @@ pub fn map2_second_invalid_test() -> Nil {
       Valid(1),
       Invalid(non_empty_list.single("e2")),
     )
-    == Invalid(NonEmptyList(first: "e2", rest: []))
+    == Invalid(nel.make(first: "e2", rest: []))
 }
 
 pub fn map2_multiple_errors_per_branch_test() -> Nil {
   assert validated.map2(
       fn(a, b) { a + b },
-      Invalid(NonEmptyList(first: "e1a", rest: ["e1b"])),
+      Invalid(nel.make(first: "e1a", rest: ["e1b"])),
       Invalid(non_empty_list.single("e2")),
     )
-    == Invalid(NonEmptyList(first: "e1a", rest: ["e1b", "e2"]))
+    == Invalid(nel.make(first: "e1a", rest: ["e1b", "e2"]))
 }
 
 // --- map3 ---
@@ -210,7 +211,7 @@ pub fn map3_accumulates_errors_test() -> Nil {
       Valid(2),
       Invalid(non_empty_list.single("e3")),
     )
-    == Invalid(NonEmptyList(first: "e1", rest: ["e3"]))
+    == Invalid(nel.make(first: "e1", rest: ["e3"]))
 }
 
 pub fn map3_all_invalid_test() -> Nil {
@@ -220,7 +221,7 @@ pub fn map3_all_invalid_test() -> Nil {
       Invalid(non_empty_list.single("e2")),
       Invalid(non_empty_list.single("e3")),
     )
-    == Invalid(NonEmptyList(first: "e1", rest: ["e2", "e3"]))
+    == Invalid(nel.make(first: "e1", rest: ["e2", "e3"]))
 }
 
 pub fn map3_one_invalid_test() -> Nil {
@@ -230,7 +231,7 @@ pub fn map3_one_invalid_test() -> Nil {
       Invalid(non_empty_list.single("e2")),
       Valid(3),
     )
-    == Invalid(NonEmptyList(first: "e2", rest: []))
+    == Invalid(nel.make(first: "e2", rest: []))
 }
 
 // --- map4 ---
@@ -252,7 +253,7 @@ pub fn map4_accumulates_errors_test() -> Nil {
       Invalid(non_empty_list.single("e3")),
       Invalid(non_empty_list.single("e4")),
     )
-    == Invalid(NonEmptyList(first: "e1", rest: ["e2", "e3", "e4"]))
+    == Invalid(nel.make(first: "e1", rest: ["e2", "e3", "e4"]))
 }
 
 pub fn map4_partial_invalid_test() -> Nil {
@@ -263,7 +264,7 @@ pub fn map4_partial_invalid_test() -> Nil {
       Valid(3),
       Invalid(non_empty_list.single("e4")),
     )
-    == Invalid(NonEmptyList(first: "e2", rest: ["e4"]))
+    == Invalid(nel.make(first: "e2", rest: ["e4"]))
 }
 
 // --- map5 ---
@@ -286,7 +287,7 @@ pub fn map5_accumulates_errors_test() -> Nil {
       Valid(4),
       Invalid(non_empty_list.single("e5")),
     )
-    == Invalid(NonEmptyList(first: "e1", rest: ["e3", "e5"]))
+    == Invalid(nel.make(first: "e1", rest: ["e3", "e5"]))
 }
 
 pub fn map5_all_invalid_test() -> Nil {
@@ -298,7 +299,7 @@ pub fn map5_all_invalid_test() -> Nil {
       Invalid(non_empty_list.single("e4")),
       Invalid(non_empty_list.single("e5")),
     )
-    == Invalid(NonEmptyList(first: "e1", rest: ["e2", "e3", "e4", "e5"]))
+    == Invalid(nel.make(first: "e1", rest: ["e2", "e3", "e4", "e5"]))
 }
 
 pub fn map5_single_invalid_test() -> Nil {
@@ -310,7 +311,7 @@ pub fn map5_single_invalid_test() -> Nil {
       Invalid(non_empty_list.single("e4")),
       Valid(5),
     )
-    == Invalid(NonEmptyList(first: "e4", rest: []))
+    == Invalid(nel.make(first: "e4", rest: []))
 }
 
 // --- error order preservation across mapN ---
@@ -318,10 +319,10 @@ pub fn map5_single_invalid_test() -> Nil {
 pub fn map2_error_order_test() -> Nil {
   assert validated.map2(
       fn(a, b) { #(a, b) },
-      Invalid(NonEmptyList(first: "first", rest: ["second"])),
+      Invalid(nel.make(first: "first", rest: ["second"])),
       Invalid(non_empty_list.single("third")),
     )
-    == Invalid(NonEmptyList(first: "first", rest: ["second", "third"]))
+    == Invalid(nel.make(first: "first", rest: ["second", "third"]))
 }
 
 pub fn map3_error_order_test() -> Nil {
@@ -331,5 +332,5 @@ pub fn map3_error_order_test() -> Nil {
       Invalid(non_empty_list.single("b")),
       Invalid(non_empty_list.single("c")),
     )
-    == Invalid(NonEmptyList(first: "a", rest: ["b", "c"]))
+    == Invalid(nel.make(first: "a", rest: ["b", "c"]))
 }

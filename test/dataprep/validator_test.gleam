@@ -1,3 +1,4 @@
+import dataprep/helpers/nel
 import dataprep/non_empty_list
 import dataprep/validated.{Invalid, Valid}
 import dataprep/validator
@@ -90,7 +91,7 @@ pub fn both_accumulates_errors_test() -> Nil {
   let v2 = validator.predicate(fn(_: String) { False }, TooLong)
   let validator_under_test = validator.both(first: v1, second: v2)
   assert validator_under_test("x")
-    == Invalid(non_empty_list.NonEmptyList(first: TooShort, rest: [TooLong]))
+    == Invalid(nel.make(first: TooShort, rest: [TooLong]))
 }
 
 pub fn both_first_fails_only_test() -> Nil {
@@ -135,9 +136,7 @@ pub fn both_chained_three_test() -> Nil {
       second: validator.predicate(fn(_) { False }, TooLong),
     )
   assert validator_under_test("x")
-    == Invalid(
-      non_empty_list.NonEmptyList(first: IsEmpty, rest: [TooShort, TooLong]),
-    )
+    == Invalid(nel.make(first: IsEmpty, rest: [TooShort, TooLong]))
 }
 
 // --- all ---
@@ -167,7 +166,7 @@ pub fn all_accumulates_test() -> Nil {
       validator.predicate(fn(_: String) { False }, TooLong),
     ])
   assert validator_under_test("x")
-    == Invalid(non_empty_list.NonEmptyList(first: TooShort, rest: [TooLong]))
+    == Invalid(nel.make(first: TooShort, rest: [TooLong]))
 }
 
 pub fn all_all_fail_test() -> Nil {
@@ -178,9 +177,7 @@ pub fn all_all_fail_test() -> Nil {
       validator.predicate(fn(_: String) { False }, TooLong),
     ])
   assert validator_under_test("x")
-    == Invalid(
-      non_empty_list.NonEmptyList(first: IsEmpty, rest: [TooShort, TooLong]),
-    )
+    == Invalid(nel.make(first: IsEmpty, rest: [TooShort, TooLong]))
 }
 
 pub fn all_all_pass_test() -> Nil {
@@ -222,7 +219,7 @@ pub fn alt_both_fail_accumulates_test() -> Nil {
       second: validator.predicate(fn(_) { False }, NotSlug),
     )
   assert validator_under_test("test")
-    == Invalid(non_empty_list.NonEmptyList(first: NotUuid, rest: [NotSlug]))
+    == Invalid(nel.make(first: NotUuid, rest: [NotSlug]))
 }
 
 pub fn alt_chained_three_first_wins_test() -> Nil {
@@ -251,9 +248,7 @@ pub fn alt_chained_three_all_fail_test() -> Nil {
       second: validator.predicate(fn(_) { False }, TooLong),
     )
   assert validator_under_test("x")
-    == Invalid(
-      non_empty_list.NonEmptyList(first: IsEmpty, rest: [TooShort, TooLong]),
-    )
+    == Invalid(nel.make(first: IsEmpty, rest: [TooShort, TooLong]))
 }
 
 // --- guard ---
@@ -348,7 +343,7 @@ pub fn map_error_multiple_errors_test() -> Nil {
     |> validator.map_error(fn(e) { FieldError("field", e) })
   assert validator_under_test("x")
     == Invalid(
-      non_empty_list.NonEmptyList(first: FieldError("field", TooShort), rest: [
+      nel.make(first: FieldError("field", TooShort), rest: [
         FieldError("field", TooLong),
       ]),
     )
@@ -381,7 +376,7 @@ pub fn label_multiple_errors_test() -> Nil {
     |> validator.label("email", FieldError)
   assert validator_under_test("x")
     == Invalid(
-      non_empty_list.NonEmptyList(first: FieldError("email", IsEmpty), rest: [
+      nel.make(first: FieldError("email", IsEmpty), rest: [
         FieldError("email", TooShort),
       ]),
     )

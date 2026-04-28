@@ -25,7 +25,6 @@ pub fn main() -> Nil {
   let assert "ok" = prep_alias("ok")
   let assert validated.Valid("ok") = validator_alias("ok")
   let assert validated.Valid("ok") = validated_alias
-  let assert non_empty_list.NonEmptyList(first: "ok", rest: []) =
-    non_empty_list_alias
+  let assert ["ok"] = non_empty_list.to_list(non_empty_list_alias)
   gleeunit.main()
 }
