@@ -1,6 +1,8 @@
 import dataprep/non_empty_list
 import dataprep/validated.{Invalid, Valid}
 import dataprep/validator
+import gleam/list
+import gleam/option
 import gleam/string
 
 type Err {
@@ -425,4 +427,86 @@ pub fn guard_then_both_test() -> Nil {
     )
   assert validator_under_test("") == Invalid(non_empty_list.single(IsEmpty))
   assert validator_under_test("hello") == Valid("hello")
+}
+
+// --- each composes with all/both/alt/guard (issue #21) ---
+
+/// Issue #21 reproduction: validate "≤ N items in the list" AND
+/// "each item satisfies X" using `validator.all` over a single
+/// `Validator(List(a), e)`. Before the fix, `each` returned the
+/// raw `fn(List(a)) -> Validated(...)` arrow which forced callers
+/// to write a 7-line bridge to lift it back into `Validator`.
+pub fn each_composes_with_all_over_parent_list_test() -> Nil {
+  let item_v = validator.predicate(fn(s: String) { s != "" }, IsEmpty)
+  let validator_under_test =
+    validator.all([
+      validator.predicate(
+        fn(items: List(String)) { list.length(items) <= 3 },
+        TooLong,
+      ),
+      validator.each(item_v),
+    ])
+
+  // Happy path: list ≤ 3 and every item is non-empty.
+  assert validator_under_test(["a", "b"]) == Valid(["a", "b"])
+
+  // Single failure: parent rule fails (too many items), per-item
+  // rule passes — only TooLong surfaces.
+  assert validator_under_test(["a", "b", "c", "d"])
+    == Invalid(non_empty_list.single(TooLong))
+
+  // Single failure: parent rule passes, per-item rule fails on one
+  // element — only IsEmpty surfaces.
+  assert validator_under_test(["a", "", "b"])
+    == Invalid(non_empty_list.single(IsEmpty))
+}
+
+/// Confirms `each` now composes with `both` exactly like any other
+/// `Validator(List(a), e)` would.
+pub fn each_composes_with_both_over_parent_list_test() -> Nil {
+  let item_v = validator.predicate(fn(s: String) { s != "" }, IsEmpty)
+  let validator_under_test =
+    validator.both(
+      first: validator.predicate(
+        fn(items: List(String)) { list.length(items) <= 3 },
+        TooLong,
+      ),
+      second: validator.each(item_v),
+    )
+
+  assert validator_under_test(["a"]) == Valid(["a"])
+
+  // Both rules fail: errors accumulate.
+  assert case validator_under_test(["", "", "", ""]) {
+    Invalid(_) -> True
+    Valid(_) -> False
+  }
+}
+
+// --- optional composes with all/both/alt/guard (issue #21) ---
+
+/// Mirror of #21 for `optional`: returns a `Validator(Option(a), e)`
+/// so it can sit in an `all` list alongside other Optional-level
+/// rules without an adapter wrapper.
+pub fn optional_composes_with_all_over_parent_option_test() -> Nil {
+  let inner =
+    validator.predicate(fn(s: String) { string.length(s) >= 3 }, TooShort)
+  let validator_under_test =
+    validator.all([
+      validator.predicate(option.is_some, IsEmpty),
+      validator.optional(inner),
+    ])
+
+  // Some + valid inner → both rules pass.
+  assert validator_under_test(option.Some("hello"))
+    == Valid(option.Some("hello"))
+
+  // None → presence check fails, optional inner short-circuits to
+  // Valid(None). Only IsEmpty surfaces.
+  assert validator_under_test(option.None)
+    == Invalid(non_empty_list.single(IsEmpty))
+
+  // Some but inner fails → presence check passes, inner fails.
+  assert validator_under_test(option.Some("ab"))
+    == Invalid(non_empty_list.single(TooShort))
 }
