@@ -1,3 +1,7 @@
+/// Validated(a, e) is intentionally a transparent sum type. Pattern
+/// matching on `Valid(_)` and `Invalid(_)` is the supported call shape:
+/// it is the natural way to consume a result without a redundant
+/// extractor layer, and the constructors are part of the stable API.
 import dataprep/non_empty_list
 import gleam/list
 

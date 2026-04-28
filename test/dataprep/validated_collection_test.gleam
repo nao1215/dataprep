@@ -1,3 +1,4 @@
+import dataprep/helpers/nel
 import dataprep/non_empty_list
 import dataprep/rules
 import dataprep/validated.{Invalid, Valid}
@@ -25,7 +26,7 @@ pub fn sequence_accumulates_errors_test() -> Nil {
       Valid(3),
       Invalid(non_empty_list.single("e2")),
     ])
-    == Invalid(non_empty_list.NonEmptyList(first: "e1", rest: ["e2"]))
+    == Invalid(nel.make(first: "e1", rest: ["e2"]))
 }
 
 pub fn sequence_single_invalid_test() -> Nil {
@@ -58,7 +59,7 @@ pub fn traverse_accumulates_errors_test() -> Nil {
   assert validated.traverse(["hello", "", "world", ""], fn(s) {
       rules.not_empty(TooShort)(s)
     })
-    == Invalid(non_empty_list.NonEmptyList(first: TooShort, rest: [TooShort]))
+    == Invalid(nel.make(first: TooShort, rest: [TooShort]))
 }
 
 pub fn traverse_with_transform_test() -> Nil {
@@ -114,7 +115,7 @@ pub fn each_all_pass_test() -> Nil {
 pub fn each_accumulates_test() -> Nil {
   let check = validator.each(rules.not_empty(TooShort))
   assert check(["a", "", "b", ""])
-    == Invalid(non_empty_list.NonEmptyList(first: TooShort, rest: [TooShort]))
+    == Invalid(nel.make(first: TooShort, rest: [TooShort]))
 }
 
 pub fn each_empty_list_test() -> Nil {
