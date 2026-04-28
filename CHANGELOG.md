@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **validator (BREAKING)**: `validator.each` and `validator.optional` now
+  return `Validator(List(a), e)` and `Validator(Option(a), e)` respectively
+  instead of the bare `fn(...) -> Validated(...)` arrows they exposed
+  before. The implementations are unchanged (`each` already preserved
+  its input list per the `Validator` invariant; `optional` already
+  preserved its `Option`), but the explicit `Validator(_, _)` return
+  type means both can now be dropped directly into `validator.all`,
+  `validator.both`, `validator.alt`, and `validator.guard` over the
+  same parent value — the seven-line bridge described in #21 (validate
+  `length(list) <= 8` AND `each item satisfies X` over the same
+  `List(String)`) collapses to a one-line `validator.all([...])`
+  composition. Existing call sites that captured the bound function
+  by its concrete type need no change because the alias resolves
+  transparently; sites that named the type explicitly should switch
+  to `Validator(List(a), e)` / `Validator(Option(a), e)`. (#21)
+
 ## [0.5.0] - 2026-04-27
 
 ### Documentation
