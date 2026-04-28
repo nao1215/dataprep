@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- JavaScript target support. The `target = "erlang"` constraint has
+  been dropped from `gleam.toml` so the package compiles for both
+  Erlang and JavaScript. Enables sharing the same `Validator(a, e)`
+  between Lustre client-side form validation and a server-side
+  validator (e.g. wisp). The package contains zero FFI and zero
+  target-specific code, so behavior is identical on both runtimes.
+  CI now runs the test suite on both targets. (#25)
+
 ### Changed
 
 - **non_empty_list (BREAKING)**: `NonEmptyList(a)` is now `pub opaque`.
