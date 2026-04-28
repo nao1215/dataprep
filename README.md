@@ -19,7 +19,16 @@ dataprep is a combinator toolkit, not a rule catalog.
 ## Requirements
 
 - Gleam 1.15 or later
-- Erlang/OTP 27 or later
+- Erlang/OTP 27 or later (when targeting Erlang)
+- Node.js 18 or later (when targeting JavaScript)
+
+## Supported targets
+
+- Erlang (BEAM) — for server-side use (e.g. wisp, mist)
+- JavaScript — for client-side use (e.g. Lustre form validation in the
+  browser). The package contains zero FFI and zero target-specific code,
+  so the same `Validator(a, e)` can be shared between client and server
+  code.
 
 ## Install
 
