@@ -1,6 +1,7 @@
 import dataprep/non_empty_list
 import dataprep/validated.{type Validated, Invalid, Valid}
 import gleam/list
+import gleam/option
 
 /// Validator(a, e) checks a value and either returns it unchanged
 /// or produces errors. Key invariant: if v(x) returns Valid(y), then x == y.
@@ -145,20 +146,30 @@ pub fn label(
 /// All errors from all elements are accumulated.
 /// Returns Valid with the unchanged list on success.
 ///
+/// Issue #21: returns a `Validator(List(a), e)` so it composes
+/// directly with `all`, `both`, `alt`, and `guard` over the same
+/// parent list — e.g. `validator.all([length_check, validator.each(item_v)])`
+/// validates "this list as a whole" AND "each item" without an
+/// adapter. The Validator invariant (input value preserved on
+/// Valid) holds because `validated.traverse` does not mutate the
+/// input — it threads each element through `v` whose own invariant
+/// preserves the value.
+///
 /// For index-aware validation, use `validated.traverse_indexed`
 /// with `validator.label` to attach position info.
-pub fn each(
-  v: Validator(a, e),
-) -> fn(List(a)) -> validated.Validated(List(a), e) {
+pub fn each(v: Validator(a, e)) -> Validator(List(a), e) {
   fn(items) { validated.traverse(items, v) }
 }
 
 /// Make a validator optional: if the value is None, it is always
 /// Valid(None). If Some(a), run the inner validator and wrap the
 /// result back in Some.
-pub fn optional(
-  v: Validator(a, e),
-) -> fn(option.Option(a)) -> validated.Validated(option.Option(a), e) {
+///
+/// Issue #21: returns a `Validator(Option(a), e)` so it composes
+/// with `all`, `both`, `alt`, and `guard` over the same optional
+/// parent value (e.g. enforce "if present, satisfies X" alongside
+/// other Optional-level rules).
+pub fn optional(v: Validator(a, e)) -> Validator(option.Option(a), e) {
   fn(opt) {
     case opt {
       option.None -> Valid(option.None)
@@ -166,5 +177,3 @@ pub fn optional(
     }
   }
 }
-
-import gleam/option
