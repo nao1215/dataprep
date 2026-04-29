@@ -1,6 +1,7 @@
 import dataprep/validator.{type Validator}
 import gleam/float
 import gleam/list
+import gleam/order
 import gleam/regexp.{Match}
 import gleam/string
 
@@ -241,5 +242,3 @@ pub fn one_of(allowed allowed: List(a), error error: e) -> Validator(a, e) {
 pub fn equals(expected expected: a, error error: e) -> Validator(a, e) {
   validator.predicate(fn(a) { a == expected }, error)
 }
-
-import gleam/order
