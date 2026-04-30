@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-04-30
+
+### Added
+
+- **test**: A dedicated `laws_test` module pins the documented behavioral
+  invariants of `validator` and `validated` (input preservation,
+  accumulation vs short-circuit semantics across `both` / `all` / `alt` /
+  `guard` / `each` / `optional`, functor identity & composition for
+  `map`, monadic short-circuit and identity laws for `and_then`, and
+  left-to-right error order across the `mapN` family). The tests use
+  only `gleam_stdlib` types so they exercise both the Erlang and
+  JavaScript CI lanes; `panic` sentinels enforce the short-circuit
+  branches. A prose counterpart lives in `doc/laws.md`. (#32)
+
+- **docs**: Two new first-party recipes — `doc/recipes/wisp_request.md`
+  for a JSON-bodied Wisp handler that returns every field error at once,
+  and `doc/recipes/lustre_form.md` for a Lustre form that validates on
+  submit and renders per-field error messages inline. The Lustre recipe
+  also documents how to share a single `dataprep` validator module
+  between the BEAM server and the JavaScript browser. (#33)
+
 ## [0.8.0] - 2026-04-30
 
 ### Added

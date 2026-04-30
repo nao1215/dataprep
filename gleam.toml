@@ -1,5 +1,5 @@
 name = "dataprep"
-version = "0.8.0"
+version = "0.9.0"
 description = "Composable, type-driven preprocessing and validation combinator library"
 licences = ["MIT"]
 repository = { type = "github", user = "nao1215", repo = "dataprep" }
