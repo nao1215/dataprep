@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- **rules**: `matches_string_checked` and `matches_fully_string_checked`
+  return `Result(Validator(String, e), RegexRuleError)` instead of
+  panicking on a malformed pattern. Use these when the pattern comes
+  from config or admin-supplied input — the panicking
+  `matches_string` / `matches_fully_string` helpers stay available
+  for hard-coded literal patterns. The `RegexRuleError.InvalidPattern`
+  variant exposes both `reason` and `byte_index` so callers can
+  surface meaningful diagnostics without depending on `gleam/regexp`
+  directly. (#35)
+
 ### Changed
 
 - **ci(javascript)**: The `Test (JavaScript)` workflow now runs against

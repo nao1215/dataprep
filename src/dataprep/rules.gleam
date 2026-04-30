@@ -5,6 +5,17 @@ import gleam/order
 import gleam/regexp.{Match}
 import gleam/string
 
+/// Why a checked regex constructor refused to build a validator.
+///
+/// Returned by `matches_string_checked` and
+/// `matches_fully_string_checked` instead of panicking, so the
+/// caller controls how a malformed pattern surfaces. Mirrors the
+/// information from `regexp.CompileError` without forcing the
+/// caller to depend on `gleam/regexp` directly.
+pub type RegexRuleError {
+  InvalidPattern(reason: String, byte_index: Int)
+}
+
 /// Fails if the string is exactly "". Whitespace-only strings like
 /// "  " pass this check. To reject whitespace-only input, compose
 /// with prep.trim() first:
@@ -156,6 +167,74 @@ pub fn matches_fully_string(
       // nolint: avoid_panic -- malformed literal regex is a programmer error; recovery is not meaningful at this call site
       panic as msg
     }
+  }
+}
+
+/// Like `matches_string`, but returns the compile failure as a
+/// `Result` instead of panicking. Use this when the pattern is not
+/// a hard-coded literal — config files, admin-supplied input, or
+/// anywhere a malformed pattern is a recoverable runtime condition
+/// rather than a programmer error.
+///
+/// On success the validator behaves identically to
+/// `matches(pattern: re, error:)` over the compiled pattern, i.e.
+/// uses `regexp.check` semantics (substring hit is enough).
+///
+/// Example:
+///   import dataprep/rules
+///   import gleam/result
+///
+///   case rules.matches_string_checked(
+///     pattern: pattern_from_config,
+///     error: InvalidFormat,
+///   ) {
+///     Ok(check) -> handle_request(check)
+///     Error(rules.InvalidPattern(reason: r, ..)) -> reject_config(r)
+///   }
+pub fn matches_string_checked(
+  pattern pattern: String,
+  error error: e,
+) -> Result(Validator(String, e), RegexRuleError) {
+  case regexp.from_string(pattern) {
+    Ok(re) -> Ok(matches(pattern: re, error: error))
+    Error(compile_error) ->
+      Error(InvalidPattern(
+        reason: compile_error.error,
+        byte_index: compile_error.byte_index,
+      ))
+  }
+}
+
+/// Like `matches_fully_string`, but returns the compile failure as
+/// a `Result` instead of panicking. Use this for the validation use
+/// case when the pattern comes from configuration or any other
+/// dynamic source where a compile failure should be handled rather
+/// than crashing.
+///
+/// On success the validator behaves identically to
+/// `matches_fully(pattern: re, error:)` over the compiled pattern.
+///
+/// Example:
+///   import dataprep/rules
+///
+///   case rules.matches_fully_string_checked(
+///     pattern: pattern_from_admin,
+///     error: BadFormat,
+///   ) {
+///     Ok(check) -> ...
+///     Error(rules.InvalidPattern(reason: r, ..)) -> ...
+///   }
+pub fn matches_fully_string_checked(
+  pattern pattern: String,
+  error error: e,
+) -> Result(Validator(String, e), RegexRuleError) {
+  case regexp.from_string(pattern) {
+    Ok(re) -> Ok(matches_fully(pattern: re, error: error))
+    Error(compile_error) ->
+      Error(InvalidPattern(
+        reason: compile_error.error,
+        byte_index: compile_error.byte_index,
+      ))
   }
 }
 
