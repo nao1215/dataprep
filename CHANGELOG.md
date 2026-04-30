@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-04-30
+
 ### Added
 
 - **rules**: `matches_string_checked` and `matches_fully_string_checked`
