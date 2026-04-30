@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- **ci(javascript)**: The `Test (JavaScript)` workflow now runs against
+  Node 18 in addition to Node 22, matching the documented minimum
+  supported Node version in the README. Support-floor regressions are
+  now visible in CI instead of relying on ad hoc user reports. (#36)
+
 ## [0.7.0] - 2026-04-28
 
 ### Added
