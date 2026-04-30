@@ -19,6 +19,14 @@ fn compile_regexp(pattern: String) -> regexp.Regexp {
   compiled
 }
 
+fn unwrap_checked(
+  result: Result(validator.Validator(String, Err), rules.RegexRuleError),
+) -> validator.Validator(String, Err) {
+  // nolint: assert_ok_pattern -- test patterns are fixed and known-valid
+  let assert Ok(check) = result
+  check
+}
+
 // --- not_blank ---
 
 pub fn not_blank_pass_test() -> Nil {
@@ -183,6 +191,73 @@ pub fn matches_fully_string_substring_hit_is_rejected_test() -> Nil {
       "abc123def",
     )
     == Invalid(non_empty_list.single(BadFormat))
+}
+
+// --- matches_string_checked ---
+
+pub fn matches_string_checked_ok_pass_test() -> Nil {
+  let check =
+    unwrap_checked(rules.matches_string_checked(
+      pattern: "^[a-z0-9]+$",
+      error: BadFormat,
+    ))
+  assert check("abc123") == Valid("abc123")
+}
+
+pub fn matches_string_checked_ok_fail_test() -> Nil {
+  let check =
+    unwrap_checked(rules.matches_string_checked(
+      pattern: "^[a-z]+$",
+      error: BadFormat,
+    ))
+  assert check("abc123") == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_string_checked_invalid_pattern_returns_error_test() -> Nil {
+  // Unclosed character class — would panic with `matches_string`.
+  assert case rules.matches_string_checked(pattern: "[", error: BadFormat) {
+    Error(rules.InvalidPattern(..)) -> True
+    Ok(_) -> False
+  }
+}
+
+pub fn matches_string_checked_uses_substring_semantics_test() -> Nil {
+  // Mirrors `matches`/`matches_string`: substring hit accepted.
+  let check =
+    unwrap_checked(rules.matches_string_checked(
+      pattern: "[0-9]+",
+      error: BadFormat,
+    ))
+  assert check("abc123def") == Valid("abc123def")
+}
+
+// --- matches_fully_string_checked ---
+
+pub fn matches_fully_string_checked_ok_pass_test() -> Nil {
+  let check =
+    unwrap_checked(rules.matches_fully_string_checked(
+      pattern: "[a-z0-9-]+",
+      error: BadFormat,
+    ))
+  assert check("ok-1") == Valid("ok-1")
+}
+
+pub fn matches_fully_string_checked_substring_hit_rejected_test() -> Nil {
+  let check =
+    unwrap_checked(rules.matches_fully_string_checked(
+      pattern: "[0-9]+",
+      error: BadFormat,
+    ))
+  assert check("abc123def") == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_string_checked_invalid_pattern_returns_error_test() -> Nil {
+  assert case
+    rules.matches_fully_string_checked(pattern: "(unclosed", error: BadFormat)
+  {
+    Error(rules.InvalidPattern(..)) -> True
+    Ok(_) -> False
+  }
 }
 
 // --- length_between ---
