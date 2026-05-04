@@ -49,21 +49,14 @@ pub fn both(
 /// Run all validators on the same input. Accumulate all errors.
 pub fn all(validators: List(Validator(a, e))) -> Validator(a, e) {
   fn(a) {
-    let results = list.map(validators, fn(v) { v(a) })
-    let errors =
-      list.filter_map(results, fn(r) {
-        case r {
-          Invalid(errs) -> Ok(errs)
-          Valid(_) -> Error(Nil)
-        }
-      })
-    case errors {
-      [] -> Valid(a)
-      [first, ..rest] -> {
-        let combined = list.fold(rest, first, non_empty_list.append)
-        Invalid(combined)
+    list.fold(validators, Valid(a), fn(acc, v) {
+      case acc, v(a) {
+        Valid(_), result -> result
+        Invalid(e1), Valid(_) -> Invalid(e1)
+        Invalid(e1), Invalid(e2) ->
+          Invalid(non_empty_list.append(left: e1, right: e2))
       }
-    }
+    })
   }
 }
 
