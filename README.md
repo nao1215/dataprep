@@ -75,6 +75,9 @@ pub fn validate_user(name: String, age: Int) -> Validated(User, Err) {
 > to short-circuit (skip later checks if an earlier one fails):
 >
 > ```gleam
+> import dataprep/rules
+> import dataprep/validator
+>
 > // ✗ Won't compile — piping a validator fn into another rule
 > let check = rules.not_empty(Empty) |> rules.min_length(3, TooShort)
 >
