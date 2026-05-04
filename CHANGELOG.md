@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-05-04
+
+### Fixed
+
+- **docs**: The README rule-composition snippet now imports
+  `dataprep/validator` so the example actually compiles when copied
+  into a project. The other onboarding snippets were re-checked for
+  copy-paste completeness. (#43)
+
+### Changed
+
+- **validator**: `all` was refactored to a single `list.fold`
+  accumulation, replacing the prior map / `filter_map` / fold pipeline.
+  No behavior change — order of accumulated errors and the empty-list
+  identity (`all([])` returns `Valid(input)`) are preserved. (#43)
+
 ## [0.9.0] - 2026-04-30
 
 ### Added
