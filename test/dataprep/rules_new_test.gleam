@@ -205,6 +205,17 @@ pub fn matches_fully_string_top_level_alternation_test() -> Nil {
   assert check("abc") == Invalid(non_empty_list.single(BadFormat))
 }
 
+pub fn matches_fully_string_trailing_newline_is_rejected_test() -> Nil {
+  // Pins cross-target consistency: Erlang's `re` treats `$` as
+  // matching before a final newline by default, JavaScript's
+  // `RegExp` does not. The predicate checks scan-match content
+  // against the input length, so both runtimes reject a trailing
+  // newline that the pattern did not opt into. (#47 follow-up.)
+  let check = rules.matches_fully_string(pattern: "foo", error: BadFormat)
+  assert check("foo") == Valid("foo")
+  assert check("foo\n") == Invalid(non_empty_list.single(BadFormat))
+}
+
 pub fn matches_fully_string_alternation_realistic_patterns_test() -> Nil {
   // Real-world allowlists from #47: each branch must accept any
   // alternative spelling without depending on branch order.
@@ -301,6 +312,18 @@ pub fn matches_fully_string_checked_top_level_alternation_test() -> Nil {
   assert check("a") == Valid("a")
   assert check("ab") == Valid("ab")
   assert check("abc") == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_string_checked_trailing_newline_is_rejected_test() -> Nil {
+  // Sister regression for the trailing-newline cross-target
+  // consistency check on the panicking variant.
+  let check =
+    unwrap_checked(rules.matches_fully_string_checked(
+      pattern: "foo",
+      error: BadFormat,
+    ))
+  assert check("foo") == Valid("foo")
+  assert check("foo\n") == Invalid(non_empty_list.single(BadFormat))
 }
 
 // --- length_between ---

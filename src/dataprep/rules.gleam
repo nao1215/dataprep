@@ -162,6 +162,15 @@ pub fn matches_string(
 /// `"abc123def"` rather than accepting it on a substring hit, so
 /// the API behaves the way readers usually assume.
 ///
+/// The predicate compares `regexp.scan` match content against the
+/// input rather than relying on `regexp.check`. The latter would
+/// diverge between targets for inputs with a trailing newline
+/// (Erlang `$` matches before a final newline by default;
+/// JavaScript `$` only matches at the absolute end). Comparing
+/// match content against the input length pins the contract on
+/// both runtimes — e.g. pattern `"foo"` rejects `"foo\n"` on
+/// Erlang and JavaScript alike.
+///
 /// Example:
 ///   import dataprep/rules
 ///
@@ -174,7 +183,16 @@ pub fn matches_fully_string(
   error error: e,
 ) -> Validator(String, e) {
   case regexp.from_string("^(?:" <> pattern <> ")$") {
-    Ok(re) -> validator.predicate(fn(s) { regexp.check(re, s) }, error)
+    Ok(re) ->
+      validator.predicate(
+        fn(s) {
+          case regexp.scan(re, s) {
+            [Match(content: c, ..), ..] -> c == s
+            [] -> False
+          }
+        },
+        error,
+      )
     Error(compile_error) -> {
       let msg =
         "dataprep/rules.matches_fully_string: invalid pattern — "
@@ -250,7 +268,16 @@ pub fn matches_fully_string_checked(
 ) -> Result(Validator(String, e), RegexRuleError) {
   let prefix = "^(?:"
   case regexp.from_string(prefix <> pattern <> ")$") {
-    Ok(re) -> Ok(validator.predicate(fn(s) { regexp.check(re, s) }, error))
+    Ok(re) ->
+      Ok(validator.predicate(
+        fn(s) {
+          case regexp.scan(re, s) {
+            [Match(content: c, ..), ..] -> c == s
+            [] -> False
+          }
+        },
+        error,
+      ))
     Error(compile_error) -> {
       let prefix_len = string.length(prefix)
       let adjusted_index = case compile_error.byte_index >= prefix_len {
