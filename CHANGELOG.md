@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- **rules**: `matches_fully_string` and `matches_fully_string_checked`
+  now correctly accept inputs that match a non-leftmost branch of a
+  top-level alternation. The pattern is anchored as `^(?:pattern)$`
+  inside the helper before compilation, so e.g. `"a|ab"` against
+  `"ab"` is now `Valid` (matching Python `re.fullmatch` semantics)
+  instead of being rejected because `regexp.scan` chose the shorter
+  `a` alternative. The compiled-regex variant `matches_fully` cannot
+  be fixed in place — `Regexp` is opaque and the source pattern is
+  unrecoverable — so its docstring now documents the alternation
+  caveat and points callers at the `_string` / `_string_checked`
+  variants. (#47)
+
 ## [0.10.0] - 2026-05-04
 
 ### Fixed

@@ -68,13 +68,25 @@ pub fn matches(
 
 /// Fails if the regex does not match the entire input string. Unlike
 /// `matches`, a partial / substring hit is **not** enough — the
-/// matched substring must equal the whole input. Equivalent to
-/// Python's `re.fullmatch` semantics.
+/// matched substring must equal the whole input.
 ///
-/// Anchoring the pattern (`^...$`) is therefore not required: the
-/// validator does the equivalent check itself by comparing the first
-/// match's `content` against the input. Patterns that already include
-/// `^` / `$` continue to work; the anchors just become redundant.
+/// **Caveat — alternation:** because this function only has the
+/// already-compiled `Regexp`, it cannot re-anchor the pattern
+/// internally. The check is implemented by inspecting the first
+/// match returned by `regexp.scan`, which is leftmost-first. For
+/// patterns that use top-level alternation, the engine may pick a
+/// shorter alternative even though a longer one would also match
+/// the full input — e.g. `a|ab` on `"ab"` selects `a` and the
+/// validator then reports `Invalid` even though `re.fullmatch`
+/// would accept it. If your pattern uses `|`, prefer
+/// `matches_fully_string` / `matches_fully_string_checked` (which
+/// anchor the source pattern with `^(?:...)$` before compiling), or
+/// anchor the pattern explicitly yourself before passing it in.
+///
+/// For non-alternating patterns this matches Python's `re.fullmatch`
+/// semantics: anchoring with `^...$` is therefore not required, and
+/// patterns that already include `^` / `$` continue to work — the
+/// anchors just become redundant.
 ///
 /// Example:
 ///   import gleam/regexp
@@ -139,13 +151,25 @@ pub fn matches_string(
 }
 
 /// Fails if the regex does not match the entire input string.
-/// Compiles the pattern internally; an invalid pattern panics at
-/// construction time with the underlying compile error.
+/// Compiles the pattern internally with explicit anchors
+/// (`^(?:pattern)$`) so the check matches Python's `re.fullmatch`
+/// semantics even for top-level alternation — e.g. pattern `"a|ab"`
+/// against input `"ab"` is accepted because `ab` is one of the
+/// alternatives. An invalid pattern panics at construction time
+/// with the underlying compile error.
 ///
-/// Equivalent to `matches_fully` but with a literal pattern. Use
-/// this for the validation use case — `"[0-9]+"` will reject
+/// Use this for the validation use case — `"[0-9]+"` will reject
 /// `"abc123def"` rather than accepting it on a substring hit, so
 /// the API behaves the way readers usually assume.
+///
+/// The predicate compares `regexp.scan` match content against the
+/// input rather than relying on `regexp.check`. The latter would
+/// diverge between targets for inputs with a trailing newline
+/// (Erlang `$` matches before a final newline by default;
+/// JavaScript `$` only matches at the absolute end). Comparing
+/// match content against the input length pins the contract on
+/// both runtimes — e.g. pattern `"foo"` rejects `"foo\n"` on
+/// Erlang and JavaScript alike.
 ///
 /// Example:
 ///   import dataprep/rules
@@ -158,8 +182,17 @@ pub fn matches_fully_string(
   pattern pattern: String,
   error error: e,
 ) -> Validator(String, e) {
-  case regexp.from_string(pattern) {
-    Ok(re) -> matches_fully(pattern: re, error: error)
+  case regexp.from_string("^(?:" <> pattern <> ")$") {
+    Ok(re) ->
+      validator.predicate(
+        fn(s) {
+          case regexp.scan(re, s) {
+            [Match(content: c, ..), ..] -> c == s
+            [] -> False
+          }
+        },
+        error,
+      )
     Error(compile_error) -> {
       let msg =
         "dataprep/rules.matches_fully_string: invalid pattern — "
@@ -212,7 +245,12 @@ pub fn matches_string_checked(
 /// than crashing.
 ///
 /// On success the validator behaves identically to
-/// `matches_fully(pattern: re, error:)` over the compiled pattern.
+/// `matches_fully_string`: it anchors the pattern as
+/// `^(?:pattern)$` internally and matches Python `re.fullmatch`
+/// semantics even for top-level alternation. The byte index
+/// reported on a compile failure refers to the position inside the
+/// caller-supplied pattern (the internal `^(?:` prefix is stripped
+/// off before reporting).
 ///
 /// Example:
 ///   import dataprep/rules
@@ -228,13 +266,29 @@ pub fn matches_fully_string_checked(
   pattern pattern: String,
   error error: e,
 ) -> Result(Validator(String, e), RegexRuleError) {
-  case regexp.from_string(pattern) {
-    Ok(re) -> Ok(matches_fully(pattern: re, error: error))
-    Error(compile_error) ->
+  let prefix = "^(?:"
+  case regexp.from_string(prefix <> pattern <> ")$") {
+    Ok(re) ->
+      Ok(validator.predicate(
+        fn(s) {
+          case regexp.scan(re, s) {
+            [Match(content: c, ..), ..] -> c == s
+            [] -> False
+          }
+        },
+        error,
+      ))
+    Error(compile_error) -> {
+      let prefix_len = string.length(prefix)
+      let adjusted_index = case compile_error.byte_index >= prefix_len {
+        True -> compile_error.byte_index - prefix_len
+        False -> compile_error.byte_index
+      }
       Error(InvalidPattern(
         reason: compile_error.error,
-        byte_index: compile_error.byte_index,
+        byte_index: adjusted_index,
       ))
+    }
   }
 }
 

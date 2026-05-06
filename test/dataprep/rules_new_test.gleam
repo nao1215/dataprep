@@ -193,6 +193,47 @@ pub fn matches_fully_string_substring_hit_is_rejected_test() -> Nil {
     == Invalid(non_empty_list.single(BadFormat))
 }
 
+pub fn matches_fully_string_top_level_alternation_test() -> Nil {
+  // Regression for #47: under leftmost-first alternation the engine
+  // would otherwise pick the shorter `a` and reject `"ab"` even
+  // though `ab` is one of the alternatives. `matches_fully_string`
+  // anchors the source pattern as `^(?:a|ab)$` internally, which
+  // restores Python `re.fullmatch` semantics.
+  let check = rules.matches_fully_string(pattern: "a|ab", error: BadFormat)
+  assert check("a") == Valid("a")
+  assert check("ab") == Valid("ab")
+  assert check("abc") == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_string_trailing_newline_is_rejected_test() -> Nil {
+  // Pins cross-target consistency: Erlang's `re` treats `$` as
+  // matching before a final newline by default, JavaScript's
+  // `RegExp` does not. The predicate checks scan-match content
+  // against the input length, so both runtimes reject a trailing
+  // newline that the pattern did not opt into. (#47 follow-up.)
+  let check = rules.matches_fully_string(pattern: "foo", error: BadFormat)
+  assert check("foo") == Valid("foo")
+  assert check("foo\n") == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_string_alternation_realistic_patterns_test() -> Nil {
+  // Real-world allowlists from #47: each branch must accept any
+  // alternative spelling without depending on branch order.
+  let scheme =
+    rules.matches_fully_string(pattern: "http|https", error: BadFormat)
+  assert scheme("http") == Valid("http")
+  assert scheme("https") == Valid("https")
+  assert scheme("ftp") == Invalid(non_empty_list.single(BadFormat))
+
+  let yesno =
+    rules.matches_fully_string(pattern: "yes|y|true|t", error: BadFormat)
+  assert yesno("yes") == Valid("yes")
+  assert yesno("y") == Valid("y")
+  assert yesno("true") == Valid("true")
+  assert yesno("t") == Valid("t")
+  assert yesno("maybe") == Invalid(non_empty_list.single(BadFormat))
+}
+
 // --- matches_string_checked ---
 
 pub fn matches_string_checked_ok_pass_test() -> Nil {
@@ -258,6 +299,31 @@ pub fn matches_fully_string_checked_invalid_pattern_returns_error_test() -> Nil 
     Error(rules.InvalidPattern(..)) -> True
     Ok(_) -> False
   }
+}
+
+pub fn matches_fully_string_checked_top_level_alternation_test() -> Nil {
+  // Sister regression for #47 on the checked variant: anchored
+  // compilation must apply on the success path too.
+  let check =
+    unwrap_checked(rules.matches_fully_string_checked(
+      pattern: "a|ab",
+      error: BadFormat,
+    ))
+  assert check("a") == Valid("a")
+  assert check("ab") == Valid("ab")
+  assert check("abc") == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_string_checked_trailing_newline_is_rejected_test() -> Nil {
+  // Sister regression for the trailing-newline cross-target
+  // consistency check on the panicking variant.
+  let check =
+    unwrap_checked(rules.matches_fully_string_checked(
+      pattern: "foo",
+      error: BadFormat,
+    ))
+  assert check("foo") == Valid("foo")
+  assert check("foo\n") == Invalid(non_empty_list.single(BadFormat))
 }
 
 // --- length_between ---
