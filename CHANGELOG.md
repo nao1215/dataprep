@@ -7,7 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.11.0] - 2026-05-06
+### Added
+
+- **prep**: `prep.collapse_unicode_space()` collapses runs of Unicode
+  whitespace (`\s+` under the regex engine's full Unicode rule, so
+  NO-BREAK SPACE, IDEOGRAPHIC SPACE, EN/EM spaces, etc. all match)
+  into a single ASCII space. Reach for this when callers actually
+  want the broader fold; the default `collapse_space` no longer does
+  it. (#50)
+
+### Changed
+
+- **Breaking (prep)**: `prep.collapse_space()` now matches **ASCII
+  whitespace only** (`[ \t\n\r\f\v]`). Previously it used `\s+`,
+  which under the Erlang regex engine matches Unicode whitespace too
+  and silently rewrote NO-BREAK SPACE (U+00A0) and IDEOGRAPHIC SPACE
+  (U+3000) to a regular ASCII space — destructive in CJK contexts
+  where `姓　名` (with U+3000 between names) would become `姓 名`
+  with no warning. The Unicode-aware behaviour is still available as
+  `prep.collapse_unicode_space()` for callers who need it. (#50)
 
 ### Fixed
 

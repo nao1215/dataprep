@@ -84,6 +84,54 @@ pub fn collapse_space_tabs_and_newlines_test() -> Nil {
   assert prep.collapse_space()("\t\na\n\n\tb\t") == " a b "
 }
 
+pub fn collapse_space_preserves_nbsp_test() -> Nil {
+  // NO-BREAK SPACE (U+00A0) is Unicode whitespace but not in the
+  // ASCII whitespace class, so collapse_space leaves it alone.
+  let nbsp = "\u{00A0}"
+  let input = "a" <> nbsp <> nbsp <> "b"
+  assert prep.collapse_space()(input) == input
+}
+
+pub fn collapse_space_preserves_ideographic_space_test() -> Nil {
+  // IDEOGRAPHIC SPACE (U+3000) — full-width Japanese space — must
+  // survive `collapse_space` for CJK callers (姓　名 stays intact).
+  let ideographic = "\u{3000}"
+  let input = "姓" <> ideographic <> ideographic <> "名"
+  assert prep.collapse_space()(input) == input
+}
+
+pub fn collapse_space_collapses_ascii_runs_around_unicode_whitespace_test() -> Nil {
+  // ASCII runs collapse, but the surrounding Unicode whitespace stays.
+  let nbsp = "\u{00A0}"
+  let input = "a   " <> nbsp <> "   b"
+  assert prep.collapse_space()(input) == "a " <> nbsp <> " b"
+}
+
+// --- collapse_unicode_space ---
+
+pub fn collapse_unicode_space_collapses_nbsp_test() -> Nil {
+  // The opt-in Unicode variant DOES fold NO-BREAK SPACE runs into a
+  // single ASCII space.
+  let nbsp = "\u{00A0}"
+  let input = "a" <> nbsp <> nbsp <> "b"
+  assert prep.collapse_unicode_space()(input) == "a b"
+}
+
+pub fn collapse_unicode_space_collapses_ideographic_test() -> Nil {
+  let ideographic = "\u{3000}"
+  let input = "a" <> ideographic <> ideographic <> "b"
+  assert prep.collapse_unicode_space()(input) == "a b"
+}
+
+pub fn collapse_unicode_space_collapses_ascii_runs_test() -> Nil {
+  // Behaves identically to the old `collapse_space` for pure-ASCII input.
+  assert prep.collapse_unicode_space()("a   b\t\tc") == "a b c"
+}
+
+pub fn collapse_unicode_space_empty_test() -> Nil {
+  assert prep.collapse_unicode_space()("") == ""
+}
+
 // --- replace ---
 
 pub fn replace_test() -> Nil {

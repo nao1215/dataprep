@@ -294,7 +294,7 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 
 | Module | Responsibility |
 |--------|---------------|
-| `dataprep/prep` | Infallible transformations: `trim`, `lowercase`, `uppercase`, `collapse_space`, `replace`, `default`. Compose with `then` or `sequence`. |
+| `dataprep/prep` | Infallible transformations: `trim`, `lowercase`, `uppercase`, `collapse_space` (ASCII whitespace only), `collapse_unicode_space` (full Unicode `\s`), `replace`, `default`. Compose with `then` or `sequence`. |
 | `dataprep/validator` | Checks without transformation: `check`, `predicate`, `both`, `all`, `alt`, `guard`, `map_error`, `label`, `each`, `optional`. |
 | `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `from_result_map`, `to_result`, `map2`..`map5`, `sequence`, `traverse`, `traverse_indexed`. |
 | `dataprep/non_empty_list` | At-least-one guarantee for error lists: `single`, `cons`, `append`, `concat`, `map`, `flat_map`, `to_list`, `from_list`. |

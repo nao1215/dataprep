@@ -40,12 +40,43 @@ pub fn uppercase() -> Prep(String) {
   string.uppercase
 }
 
-/// Collapse consecutive whitespace into a single space.
+/// Collapse consecutive **ASCII** whitespace into a single space.
 ///
-/// Uses `let assert` for the regex compilation. The pattern `\s+` is
-/// a fixed, known-valid regular expression, so compilation cannot fail
+/// Matches the POSIX whitespace class `[ \t\n\r\f\v]` (space, tab,
+/// linefeed, carriage return, form feed, vertical tab). Unicode
+/// whitespace such as NO-BREAK SPACE (U+00A0) and IDEOGRAPHIC SPACE
+/// (U+3000) is **preserved** — for those use `collapse_unicode_space`
+/// (it matches the wider Unicode `\s` set and replaces every run with
+/// a single ASCII space).
+///
+/// This split avoids the silent CJK-destruction footgun of replacing
+/// `姓　名` (with U+3000 between the names) with `姓 名` when the
+/// caller only meant to normalise indentation.
+///
+/// Uses `let assert` for the regex compilation. The pattern is a
+/// fixed, known-valid regular expression, so compilation cannot fail
 /// at runtime. The assert is intentional and safe.
 pub fn collapse_space() -> Prep(String) {
+  // nolint: assert_ok_pattern -- the bracket expression is a fixed, known-valid regex literal
+  let assert Ok(re) = regexp.from_string("[ \\t\\n\\r\\f\\v]+")
+  fn(s) { regexp.replace(each: re, in: s, with: " ") }
+}
+
+/// Collapse consecutive Unicode whitespace into a single ASCII space.
+///
+/// Matches `\s+` under the regex engine's full Unicode rule, so it
+/// recognises NO-BREAK SPACE (U+00A0), IDEOGRAPHIC SPACE (U+3000),
+/// LINE / PARAGRAPH SEPARATOR (U+2028 / U+2029), the various EN/EM
+/// SPACEs (U+2000..U+200A), etc. Each run — even one made entirely of
+/// non-ASCII whitespace — is rewritten to a single ASCII U+0020.
+///
+/// Reach for `collapse_space` instead when the caller wants to keep
+/// CJK / typographic whitespace intact and only fold ASCII runs.
+///
+/// Uses `let assert` for the regex compilation. The pattern `\s+` is
+/// a fixed, known-valid regular expression, so compilation cannot
+/// fail at runtime. The assert is intentional and safe.
+pub fn collapse_unicode_space() -> Prep(String) {
   // nolint: assert_ok_pattern -- "\\s+" is a fixed, known-valid regex literal
   let assert Ok(re) = regexp.from_string("\\s+")
   fn(s) { regexp.replace(each: re, in: s, with: " ") }
