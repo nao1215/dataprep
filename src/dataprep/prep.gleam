@@ -1,3 +1,15 @@
+//// `dataprep/prep` — infallible transformations on a single value.
+////
+//// Reach for this module when the operation **always succeeds**:
+//// trim, lowercase, collapse whitespace, replace substrings, fall
+//// back to a default. Compose with `then` / `sequence`.
+////
+//// For fallible checks (\"is this non-empty?\", \"does this match a
+//// pattern?\") use `dataprep/validator`. The two compose cleanly —
+//// see [`doc/architecture.md`](../../doc/architecture.md) for the
+//// decision table, the canonical Prep → Validator pipeline recipe,
+//// and a worked end-to-end example.
+
 import gleam/list
 import gleam/regexp
 import gleam/string

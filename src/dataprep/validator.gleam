@@ -1,3 +1,16 @@
+//// `dataprep/validator` — fallible checks on a single value.
+////
+//// Reach for this module when the operation **may reject**: rules
+//// that produce typed errors when the input doesn't satisfy them.
+//// Compose with `both` (accumulate) / `guard` (short-circuit) /
+//// `label` (attach field name) / `all` / `alt`.
+////
+//// For total transformations (\"trim\", \"lowercase\", \"replace\")
+//// use `dataprep/prep`. The two compose cleanly — see
+//// [`doc/architecture.md`](../../doc/architecture.md) for the
+//// decision table, the canonical Prep → Validator pipeline recipe,
+//// and a worked end-to-end example.
+
 import dataprep/non_empty_list
 import dataprep/validated.{type Validated, Invalid, Valid}
 import gleam/list
