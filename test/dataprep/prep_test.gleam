@@ -168,6 +168,53 @@ pub fn default_whitespace_only_test() -> Nil {
   assert prepper("   ") == "   "
 }
 
+// `default` only fires on the literal empty string. Pin the boundary
+// so a future regression that broadens it (e.g. accepting `" "`)
+// flips the test red.
+pub fn default_pinned_literal_only_contract_test() -> Nil {
+  let prepper = prep.default("FALLBACK")
+  assert prepper("") == "FALLBACK"
+  assert prepper(" ") == " "
+  assert prepper("\t") == "\t"
+  assert prepper("abc") == "abc"
+}
+
+pub fn default_trim_then_default_composition_test() -> Nil {
+  // Documented composition for "fall back when blank, otherwise keep
+  // the trimmed form". This pattern is mentioned in the docstring; the
+  // test pins it so a `then` shape change cannot silently rot the doc.
+  let prepper = prep.trim() |> prep.then(first: _, next: prep.default("N/A"))
+  assert prepper("") == "N/A"
+  assert prepper("   ") == "N/A"
+  assert prepper("\t\n") == "N/A"
+  assert prepper("  hi  ") == "hi"
+}
+
+// --- default_when_blank ---
+
+pub fn default_when_blank_empty_test() -> Nil {
+  let prepper = prep.default_when_blank("N/A")
+  assert prepper("") == "N/A"
+}
+
+pub fn default_when_blank_whitespace_only_test() -> Nil {
+  let prepper = prep.default_when_blank("N/A")
+  assert prepper(" ") == "N/A"
+  assert prepper("\t") == "N/A"
+  assert prepper("  \n  ") == "N/A"
+  assert prepper("\r\n") == "N/A"
+}
+
+pub fn default_when_blank_non_blank_preserves_input_test() -> Nil {
+  // Non-blank: the original (un-trimmed) input is returned. The
+  // helper substitutes, it does not edit; reach for
+  // `trim |> default` if the trimmed form is what the caller wants.
+  let prepper = prep.default_when_blank("N/A")
+  assert prepper("hi") == "hi"
+  assert prepper("  hi  ") == "  hi  "
+  assert prepper("\thello\n") == "\thello\n"
+}
+
 // --- then (composition) ---
 
 pub fn then_test() -> Nil {

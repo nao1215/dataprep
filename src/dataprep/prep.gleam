@@ -90,16 +90,42 @@ pub fn replace(
   fn(s) { string.replace(in: s, each: target, with: replacement) }
 }
 
-/// Replace the value with fallback when the input is exactly "".
+/// Replace the value with fallback when the input is exactly the
+/// literal empty string `""`.
 ///
-/// Note: this checks the literal empty string only. Whitespace-only
-/// inputs like "  " are NOT treated as empty. If you want
-/// whitespace-only values to trigger the default, compose with trim:
+/// Whitespace-only inputs like `" "`, `"\t"`, `"  \n  "` are
+/// **passed through unchanged** — only `s == ""` triggers the
+/// fallback. Reach for `default_when_blank` instead when you want
+/// the broader \"missing or whitespace-only\" check, or compose with
+/// `trim`:
 ///
 ///   prep.trim() |> prep.then(first: _, next: prep.default("N/A"))
 pub fn default(fallback: String) -> Prep(String) {
   fn(s) {
     case s {
+      "" -> fallback
+      _ -> s
+    }
+  }
+}
+
+/// Replace the value with fallback when the input is the literal
+/// empty string `""` **or** consists only of whitespace (per
+/// `string.trim`).
+///
+/// Examples that fire the fallback: `""`, `" "`, `"\t"`, `"\r\n"`,
+/// `"  \n  "`. Examples that do not: `"a"`, `" a "`, `"\t hello"`.
+///
+/// Equivalent to `prep.trim() |> prep.then(prep.default(fallback))`
+/// when the trimmed value is what the caller wants to keep on the
+/// non-blank path. The dedicated helper preserves the **original**
+/// (un-trimmed) input on the non-blank path, which matches the
+/// `default` posture: only substitute, never edit. Use the explicit
+/// `trim |> default` composition when the trimmed form is the
+/// desired output.
+pub fn default_when_blank(fallback: String) -> Prep(String) {
+  fn(s) {
+    case string.trim(s) {
       "" -> fallback
       _ -> s
     }

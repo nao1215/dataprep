@@ -288,13 +288,38 @@ pub fn validate_with(
 // validate_tag("BAD!") -> Invalid([BadFormat])
 ```
 
+### `default` vs `default_when_blank`
+
+`prep.default(fallback)` only fires on the literal empty string `""`. Whitespace-only inputs (`" "`, `"\t"`, `"\r\n"`) pass through unchanged. Use `prep.default_when_blank(fallback)` when \"blank\" should also include whitespace-only.
+
+```gleam
+import dataprep/prep
+
+let strict = prep.default("N/A")
+strict("")          // "N/A"
+strict(" ")         // " "          ← passed through
+strict("\t")        // "\t"         ← passed through
+strict("hi")        // "hi"
+
+let lenient = prep.default_when_blank("N/A")
+lenient("")         // "N/A"
+lenient(" ")        // "N/A"        ← whitespace-only treated as blank
+lenient("\t\n")     // "N/A"
+lenient("  hi  ")   // "  hi  "     ← original input preserved on non-blank
+
+// Want the trimmed form on the non-blank path? Compose explicitly:
+let normalised = prep.trim() |> prep.then(first: _, next: prep.default("N/A"))
+normalised("  hi  ") // "hi"
+normalised("   ")    // "N/A"
+```
+
 More examples are available in the [doc/recipes/](https://github.com/nao1215/dataprep/tree/main/doc/recipes) directory of the repository.
 
 ## Modules
 
 | Module | Responsibility |
 |--------|---------------|
-| `dataprep/prep` | Infallible transformations: `trim`, `lowercase`, `uppercase`, `collapse_space` (ASCII whitespace only), `collapse_unicode_space` (full Unicode `\s`), `replace`, `default`. Compose with `then` or `sequence`. |
+| `dataprep/prep` | Infallible transformations: `trim`, `lowercase`, `uppercase`, `collapse_space` (ASCII whitespace only), `collapse_unicode_space` (full Unicode `\s`), `replace`, `default`, `default_when_blank`. Compose with `then` or `sequence`. |
 | `dataprep/validator` | Checks without transformation: `check`, `predicate`, `both`, `all`, `alt`, `guard`, `map_error`, `label`, `each`, `optional`. |
 | `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `from_result_map`, `to_result`, `map2`..`map5`, `sequence`, `traverse`, `traverse_indexed`. |
 | `dataprep/non_empty_list` | At-least-one guarantee for error lists: `single`, `cons`, `append`, `concat`, `map`, `flat_map`, `to_list`, `from_list`. |

@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **prep**: `prep.default_when_blank(fallback)` falls back when the
+  input is the literal empty string **or** whitespace-only (per
+  `string.trim`). The existing `prep.default(fallback)` keeps its
+  literal-empty-only contract; pick the right tool side-by-side via
+  the new \"`default` vs `default_when_blank`\" README section. The
+  documented `prep.trim() |> prep.then(prep.default(...))` composition
+  is now exercised by `gleam test` so the example cannot rot. (#52)
 - **prep**: `prep.collapse_unicode_space()` collapses runs of Unicode
   whitespace (`\s+` under the regex engine's full Unicode rule, so
   NO-BREAK SPACE, IDEOGRAPHIC SPACE, EN/EM spaces, etc. all match)
