@@ -12,6 +12,7 @@
 
 import dataprep/helpers/nel
 import dataprep/non_empty_list
+import dataprep/prep
 import dataprep/validated.{type Validated, Invalid, Valid}
 import dataprep/validator
 import gleam/list
@@ -371,4 +372,31 @@ pub fn law_sequence_accumulates_in_order_test() -> Nil {
   // empty input is Valid([])
   let empty: List(Validated(Int, LawErr)) = []
   assert validated.sequence(empty) == Valid([])
+}
+
+// ---------------------------------------------------------------------------
+// Prep combinator laws
+// ---------------------------------------------------------------------------
+
+// Law: `prep.sequence([])` is the identity element of sequential
+// composition.
+//   For every input x: sequence([])(x) = x.
+//
+// This pairs with `validator.all([])` returning `Valid(_)` (the
+// accumulation identity): both monoid units are accessible via the
+// empty-list case so callers can build prep / validator lists
+// incrementally without special-casing emptiness.
+pub fn law_prep_sequence_empty_is_identity_test() -> Nil {
+  assert prep.sequence([])(42) == 42
+  assert prep.sequence([])("x") == "x"
+  assert prep.sequence([])(option.None) == option.None
+  // Composing identity with a real prep equals the prep itself for
+  // every input — confirms `sequence([])` does not perturb a later
+  // composition.
+  let trim_then_lower = prep.then(first: prep.trim(), next: prep.lowercase())
+  let with_empty_prefix =
+    prep.then(first: prep.sequence([]), next: trim_then_lower)
+  list.each(["", "  HELLO  ", "X"], fn(s) {
+    assert with_empty_prefix(s) == trim_then_lower(s)
+  })
 }

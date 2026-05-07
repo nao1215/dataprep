@@ -60,6 +60,19 @@ pub fn both(
 }
 
 /// Run all validators on the same input. Accumulate all errors.
+///
+/// `Valid(a)` is the identity element of accumulation, so
+/// `all([])` returns a validator that accepts every input
+/// without producing any errors. This is a deliberate monoid law
+/// (see `test/dataprep/laws_test.gleam`) and lets callers build
+/// validator lists incrementally — for example via
+/// `list.filter(all_validators, by_feature_flag)` — without a
+/// special case when the resulting list happens to be empty.
+///
+/// If you want an *explicit* pass-through validator, prefer
+/// `validator.predicate(fn(_) { True }, _)` so the intent is
+/// visible at the call site instead of relying on the empty-list
+/// identity.
 pub fn all(validators: List(Validator(a, e))) -> Validator(a, e) {
   fn(a) {
     list.fold(validators, Valid(a), fn(acc, v) {
