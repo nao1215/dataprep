@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **architecture**: `doc/architecture.md` (new) — single page that
+  resolves the recurring \"do I want a `Prep` or a `Validator`?\"
+  decision. Covers the decision table, why the library splits total
+  transformations from fallible checks, the canonical Prep →
+  Validator pipeline recipe, the type-changing `parse` →
+  `validated.and_then` bridge, and a worked end-to-end signup form.
+  The `prep` and `validator` module docstrings now cross-link to it.
+  The recipe is exercised by `test/integration_pipeline_test.gleam`
+  so the snippet cannot drift out of sync. (#51)
+
 ### Added
 
 - **prep**: `prep.default_when_blank(fallback)` falls back when the
