@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-05-07
+
 ### Documentation
 
 - **validator / prep**: pin the empty-list monoid identity in the
