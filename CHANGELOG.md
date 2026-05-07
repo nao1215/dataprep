@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- **validator / prep**: pin the empty-list monoid identity in the
+  docstrings of `validator.all/1` and `prep.sequence/1`. Both
+  functions return the identity element when given `[]` (`Valid(a)`
+  and `identity()` respectively); the docs now explain that this is
+  a deliberate monoid law and recommend
+  `validator.predicate(fn(_) { True }, _)` for callers who want an
+  *explicit* pass-through validator. The existing
+  `law_all_empty_is_identity_test` keeps the validator side under
+  test; a new `law_prep_sequence_empty_is_identity_test` pins the
+  prep side. (#57)
+
 ## [0.12.0] - 2026-05-07
 
 ### Documentation

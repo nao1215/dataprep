@@ -25,7 +25,14 @@ pub fn then(first p1: Prep(a), next p2: Prep(a)) -> Prep(a) {
 }
 
 /// Compose a list of preps into a single prep.
-/// Empty list returns identity.
+///
+/// `identity()` is the identity element of sequential composition,
+/// so `sequence([])` returns a prep that leaves every input
+/// unchanged. This is a deliberate monoid law (see
+/// `test/dataprep/laws_test.gleam`) and lets callers build prep
+/// lists incrementally — for example via
+/// `list.filter(all_preps, by_feature_flag)` — without a special
+/// case when the resulting list happens to be empty.
 pub fn sequence(steps: List(Prep(a))) -> Prep(a) {
   list.fold(over: steps, from: identity(), with: fn(acc, step) {
     then(first: acc, next: step)
