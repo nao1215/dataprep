@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **prep**: `prep.compose(first:, then:)` is a labelled alias of
+  `prep.then/2` exposed under the FP `compose` name. FP-leaning users
+  coming from Haskell `(.)`, Elm `<<`, or lodash `_.flow` grep for
+  `compose` first; the alias keeps the entry point discoverable via
+  hexdocs / autocomplete without renaming or removing the existing
+  `then/2`. Output is byte-identical to `then(first:, next:)`. The
+  second label reads `then` (not `next`) to mirror the prose "first
+  do f, *then* do g". (#61)
+
 - **prep**: `prep.run(prep:, value:)` is a thin alias for the
   function-call form: `prep.run(p, value)` is identical to `p(value)`.
   `Prep(a)` is a `fn(a) -> a` type alias, so applying a built prep is
