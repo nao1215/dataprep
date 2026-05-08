@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-05-08
+
 ### Added
 - **validator**: `validator.required(error)` is a convenience for the
   canonical "this string field is required" check —
