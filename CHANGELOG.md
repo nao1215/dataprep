@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **prep**: `prep.run(prep:, value:)` is a thin alias for the
+  function-call form: `prep.run(p, value)` is identical to `p(value)`.
+  `Prep(a)` is a `fn(a) -> a` type alias, so applying a built prep is
+  just calling it like a function — but new users coming from a "build
+  a transformer, apply later" mental model reach for `run`/`apply`
+  first. `prep.run/2` exists as a discoverability hook (and as a
+  pipe-friendly entry point for callers who thread the prep value
+  through multiple call sites). Both forms compile to the same code;
+  pick whichever reads better at the call site. (#60)
+
+### Documentation
+- **prep**: top-level `////` docstring now ships an "Applying a Prep"
+  section that pins the type-alias trick (`Prep(a) = fn(a) -> a`),
+  shows the function-call form, and points readers at `prep.run/2`
+  for the named entry point. The split lets readers pick whichever
+  form reads better at the call site without having to read the
+  source to learn the type-alias contract. (#60)
+
 ## [0.13.0] - 2026-05-07
 
 ### Documentation
