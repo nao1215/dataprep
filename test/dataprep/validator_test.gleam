@@ -505,3 +505,46 @@ pub fn optional_composes_with_all_over_parent_option_test() -> Nil {
   assert validator_under_test(option.Some("ab"))
     == Invalid(non_empty_list.single(TooShort))
 }
+
+// --- required: convenience for the canonical "non-empty string" check (#62) ---
+
+pub fn required_rejects_empty_string_test() -> Nil {
+  let validator_under_test = validator.required(IsEmpty)
+  assert validator_under_test("") == Invalid(non_empty_list.single(IsEmpty))
+}
+
+pub fn required_accepts_non_empty_string_test() -> Nil {
+  let validator_under_test = validator.required(IsEmpty)
+  assert validator_under_test("hello") == Valid("hello")
+}
+
+pub fn required_accepts_whitespace_only_string_test() -> Nil {
+  // Whitespace-only is non-empty by string equality, so `required`
+  // alone accepts it. Callers who want "required after trimming"
+  // pipe through `prep.trim` upstream — documented in the validator
+  // doc comment.
+  let validator_under_test = validator.required(IsEmpty)
+  assert validator_under_test("   ") == Valid("   ")
+}
+
+pub fn required_matches_predicate_form_test() -> Nil {
+  // The convenience must produce byte-identical Validated values to
+  // the spelt-out predicate form on the same inputs.
+  let via_required = validator.required(IsEmpty)
+  let via_predicate = validator.predicate(fn(s) { s != "" }, IsEmpty)
+  assert via_required("") == via_predicate("")
+  assert via_required("ok") == via_predicate("ok")
+  assert via_required(" ") == via_predicate(" ")
+}
+
+pub fn required_composes_with_all_test() -> Nil {
+  let validator_under_test =
+    validator.all([
+      validator.required(IsEmpty),
+      validator.predicate(fn(s) { string.length(s) <= 32 }, TooLong),
+    ])
+  assert validator_under_test("ok") == Valid("ok")
+  // Empty triggers IsEmpty; the >32 check passes for "" so only
+  // IsEmpty surfaces.
+  assert validator_under_test("") == Invalid(non_empty_list.single(IsEmpty))
+}
