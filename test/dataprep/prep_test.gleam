@@ -280,6 +280,44 @@ pub fn full_pipeline_test() -> Nil {
   assert clean("  John.  DOE.  Jr  ") == "john doe jr"
 }
 
+// --- compose/2: FP-named alias of then/2 (#61) ---
+
+pub fn compose_matches_then_test() -> Nil {
+  let via_then = prep.then(first: prep.trim(), next: prep.uppercase())
+  let via_compose = prep.compose(first: prep.trim(), then: prep.uppercase())
+  // Same input must produce the same output via either entry point.
+  assert via_then("  hello  ") == via_compose("  hello  ")
+  assert via_then("  hello  ") == "HELLO"
+}
+
+pub fn compose_with_default_test() -> Nil {
+  let pipeline = prep.compose(first: prep.trim(), then: prep.default("N/A"))
+  assert pipeline("   ") == "N/A"
+  assert pipeline("hello") == "hello"
+  assert pipeline("") == "N/A"
+}
+
+pub fn compose_associativity_with_then_test() -> Nil {
+  // (trim ∘ lowercase) ∘ collapse must equal trim ∘ (lowercase ∘ collapse)
+  // for total transformations on the same type — pinning the monoid
+  // law on the alias side.
+  let trim_step = prep.trim()
+  let lower_step = prep.lowercase()
+  let collapse_step = prep.collapse_space()
+  let left =
+    prep.compose(
+      first: prep.compose(first: trim_step, then: lower_step),
+      then: collapse_step,
+    )
+  let right =
+    prep.compose(
+      first: trim_step,
+      then: prep.compose(first: lower_step, then: collapse_step),
+    )
+  let input = "  Hello   WORLD  "
+  assert left(input) == right(input)
+}
+
 // --- run/2: discoverability hook for the function-call form (#60) ---
 
 pub fn run_is_function_call_test() -> Nil {

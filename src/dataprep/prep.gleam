@@ -37,8 +37,22 @@ pub type Prep(a) =
   fn(a) -> a
 
 /// Sequential composition: apply p1, then apply p2 to the result.
+///
+/// FP-leaning users often grep for `compose` first; `prep.compose/2`
+/// is a labelled alias of this function with the same semantics.
+/// Both forms accept positional and labelled arguments.
 pub fn then(first p1: Prep(a), next p2: Prep(a)) -> Prep(a) {
   fn(x) { p2(p1(x)) }
+}
+
+/// Sequential composition: same as `then/2`, exposed under the FP
+/// `compose` name so callers coming from Haskell `(.)`, Elm `<<`,
+/// or lodash `_.flow` find the entry point on first grep. The label
+/// reads `compose(first:, then:)` — the second label is `then` (not
+/// `next`) to mirror the prose "first do f, *then* do g". Output is
+/// byte-identical to `then(first:, next:)`. (#61)
+pub fn compose(first p1: Prep(a), then p2: Prep(a)) -> Prep(a) {
+  then(first: p1, next: p2)
 }
 
 /// Compose a list of preps into a single prep.
