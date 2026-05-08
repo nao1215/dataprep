@@ -9,6 +9,23 @@
 //// see [`doc/architecture.md`](../../doc/architecture.md) for the
 //// decision table, the canonical Prep → Validator pipeline recipe,
 //// and a worked end-to-end example.
+////
+//// ## Applying a Prep
+////
+//// `Prep(a)` is a type alias for `fn(a) -> a`, so applying a built
+//// prep is **just calling it like a function** — no wrapper module
+//// function is needed:
+////
+//// ```gleam
+//// let pipeline = prep.then(first: prep.trim(), next: prep.uppercase())
+//// let cleaned = pipeline(\"  hello  \")  // \"HELLO\"
+//// ```
+////
+//// For readers who prefer a named entry point — pipeline-style or
+//// when threading a prep through multiple call sites — `prep.run/2`
+//// is a thin alias of the function call: `prep.run(pipeline, value)`
+//// is identical to `pipeline(value)`. Pick whichever reads better at
+//// your call site; both compile to the same code.
 
 import gleam/list
 import gleam/regexp
@@ -42,6 +59,17 @@ pub fn sequence(steps: List(Prep(a))) -> Prep(a) {
 /// No-op prep. Returns the value unchanged.
 pub fn identity() -> Prep(a) {
   fn(x) { x }
+}
+
+/// Apply a `Prep(a)` to a value. Thin alias of the function call:
+/// `prep.run(p, value)` is identical to `p(value)`. The two forms
+/// compile to the same code; reach for `run/2` when a named entry
+/// point reads better at the call site (pipelines, currying, threading
+/// the prep value through multiple call sites). Discoverability hook
+/// for users who grep for "apply" / "run" before learning the type
+/// alias trick (#60).
+pub fn run(prep prep: Prep(a), value value: a) -> a {
+  prep(value)
 }
 
 /// Trim leading and trailing whitespace.

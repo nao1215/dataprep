@@ -279,3 +279,22 @@ pub fn full_pipeline_test() -> Nil {
     ])
   assert clean("  John.  DOE.  Jr  ") == "john doe jr"
 }
+
+// --- run/2: discoverability hook for the function-call form (#60) ---
+
+pub fn run_is_function_call_test() -> Nil {
+  let pipeline = prep.then(first: prep.trim(), next: prep.uppercase())
+  // run/2 must be byte-identical to calling the prep value directly.
+  assert prep.run(pipeline, "  hello  ") == pipeline("  hello  ")
+}
+
+pub fn run_with_identity_test() -> Nil {
+  // identity()'s `run` is the identity function on the value.
+  assert prep.run(prep.identity(), "untouched") == "untouched"
+}
+
+pub fn run_with_sequence_test() -> Nil {
+  let clean =
+    prep.sequence([prep.trim(), prep.lowercase(), prep.collapse_space()])
+  assert prep.run(clean, "  John.  DOE.  Jr  ") == "john. doe. jr"
+}
