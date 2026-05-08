@@ -8,6 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
+- **validator**: `validator.required(error)` is a convenience for the
+  canonical "this string field is required" check —
+  `predicate(fn(s) { s != "" }, error)` spelt out as the intent rather
+  than the implementation. Pairs naturally with `prep.trim()` upstream
+  for the "required after trimming" posture. Scoped to `String` because
+  "required for `Option(a)`" and "required for a list" are different
+  shapes (use `optional/1` flipped or `predicate(fn(xs) { xs != [] })`,
+  respectively). (#62)
+
 - **prep**: `prep.compose(first:, then:)` is a labelled alias of
   `prep.then/2` exposed under the FP `compose` name. FP-leaning users
   coming from Haskell `(.)`, Elm `<<`, or lodash `_.flow` grep for

@@ -42,6 +42,31 @@ pub fn predicate(condition: fn(a) -> Bool, error: e) -> Validator(a, e) {
   })
 }
 
+/// Reject the empty string. Convenience for the most common form-
+/// validation case: "this field must be non-empty". Equivalent to
+/// `predicate(fn(s) { s != "" }, error)` but reads at the call site
+/// as the intent ("required") rather than the implementation
+/// ("predicate that the string is not the empty string"). (#62)
+///
+/// Pairs naturally with `prep.trim()` upstream when the desired
+/// posture is "required after trimming whitespace":
+///
+/// ```gleam
+/// let normalised = prep.trim() |> prep.run("  ")
+/// // normalised == ""
+/// case validator.required("project is required")(normalised) {
+///   validated.Valid(_) -> ...
+///   validated.Invalid(_) -> // rejected
+/// }
+/// ```
+///
+/// Scoped to `String` because "required for `Option(a)`" and
+/// "required for a list" are different shapes (`Option` → flip
+/// `optional/1`; list → `predicate(fn(xs) { xs != [] }, error)`).
+pub fn required(error: e) -> Validator(String, e) {
+  predicate(fn(s) { s != "" }, error)
+}
+
 /// Run both validators on the same input. Accumulate all errors.
 /// On success, return the (unchanged) input.
 pub fn both(
