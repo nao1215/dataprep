@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- **`dataprep/parse`**: `parse.float_strict(raw, on_error)` is the
+  strict counterpart of `parse.float`. The lenient variant delegates
+  to `gleam/float.parse`, which silently truncates inputs like
+  `"3,000"` to `3.0` (parse stops at the comma) — a 1000× wrong
+  amount for users typing locale-formatted thousand-separated values
+  in `de_DE` / `fr_FR` / `ja_JP`. The strict variant validates the
+  input with a strict-float grammar
+  (`-?(\d+|\d+\.\d+)([eE]-?\d+)?`) and rejects anything else
+  (commas, spaces, trailing letters, leading dots, multiple dots).
+  `parse.float` keeps its lenient shape for backward compatibility,
+  with an updated doc-comment that warns about the locale-truncation
+  footgun and points at `float_strict` for amount fields. (#67)
 - Property-based and metamorphic tests using
   [metamon](https://github.com/nao1215/metamon) covering the public
   surface of `dataprep/prep`, `dataprep/non_empty_list`, and
