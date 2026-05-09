@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-05-09
+
 ### Added
 
 - **`dataprep/parse`**: `parse.float_strict(raw, on_error)` is the
