@@ -111,6 +111,91 @@ pub fn float_rejects_garbage_with_e_test() -> Nil {
     == Invalid(non_empty_list.single(NotAFloat("abc")))
 }
 
+// --- parse.float_strict (#67) ---
+
+pub fn float_strict_pass_test() -> Nil {
+  assert parse.float_strict("3.14", NotAFloat) == Valid(3.14)
+}
+
+pub fn float_strict_negative_test() -> Nil {
+  assert parse.float_strict("-1.5", NotAFloat) == Valid(-1.5)
+}
+
+pub fn float_strict_integer_literal_test() -> Nil {
+  assert parse.float_strict("5", NotAFloat) == Valid(5.0)
+}
+
+pub fn float_strict_zero_test() -> Nil {
+  assert parse.float_strict("0", NotAFloat) == Valid(0.0)
+}
+
+pub fn float_strict_scientific_test() -> Nil {
+  assert parse.float_strict("1.5e-2", NotAFloat) == Valid(0.015)
+}
+
+pub fn float_strict_scientific_uppercase_test() -> Nil {
+  assert parse.float_strict("5E3", NotAFloat) == Valid(5000.0)
+}
+
+pub fn float_strict_rejects_thousand_separator_comma_test() -> Nil {
+  // The whole point of float_strict: lenient parse silently returns
+  // 3.0 here; strict must reject so locale-formatted thousand
+  // separators don't slide through as 1000x-too-small values.
+  assert parse.float_strict("3,000", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("3,000")))
+}
+
+pub fn float_strict_rejects_space_separator_test() -> Nil {
+  assert parse.float_strict("3 000", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("3 000")))
+}
+
+pub fn float_strict_rejects_trailing_letters_test() -> Nil {
+  assert parse.float_strict("12.50abc", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("12.50abc")))
+}
+
+pub fn float_strict_rejects_unit_suffix_test() -> Nil {
+  assert parse.float_strict("3K", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("3K")))
+}
+
+pub fn float_strict_rejects_empty_test() -> Nil {
+  assert parse.float_strict("", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("")))
+}
+
+pub fn float_strict_rejects_leading_dot_test() -> Nil {
+  // The strict grammar requires digits before the dot.
+  assert parse.float_strict(".5", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat(".5")))
+}
+
+pub fn float_strict_rejects_trailing_dot_test() -> Nil {
+  assert parse.float_strict("3.", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("3.")))
+}
+
+pub fn float_strict_rejects_double_dot_test() -> Nil {
+  assert parse.float_strict("3.0.0", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("3.0.0")))
+}
+
+pub fn float_strict_rejects_whitespace_around_value_test() -> Nil {
+  // Strict parsing must not auto-trim; callers compose with
+  // `prep.trim()` if they want trim+strict.
+  assert parse.float_strict("  3.14  ", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("  3.14  ")))
+}
+
+pub fn float_strict_accepts_thousand_separator_period_test() -> Nil {
+  // "3.000" is unambiguously 3.0 in en_US locale and syntactically a
+  // valid float. The strict variant only catches structural
+  // garbage; locale ambiguity inside a syntactically-valid float
+  // cannot be resolved at this layer.
+  assert parse.float_strict("3.000", NotAFloat) == Valid(3.0)
+}
+
 // --- parse + validate pipeline ---
 
 pub fn int_then_validate_test() -> Nil {
