@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- Property-based and metamorphic tests using
+  [metamon](https://github.com/nao1215/metamon) covering the public
+  surface of `dataprep/prep`, `dataprep/non_empty_list`, and
+  `dataprep/validated`. Lives in `test/dataprep_metamon_test.gleam`.
+  Highlights: `prep.then` is associative and `prep.identity` is a
+  two-sided neutral; `prep.sequence([])` is the identity prep;
+  `prep.trim` / `prep.lowercase` / `prep.uppercase` are idempotent;
+  `prep.compose` is byte-equivalent to `prep.then`; `NonEmptyList`
+  satisfies `length >= 1`, `to_list` / `from_list` round-trip,
+  `reverse` is involutive and length-preserving, `append` lengths
+  add, `head ∘ single == id`; `Validated.from_result` round-trips on
+  both arms, `Valid` survives `map_error` / `Invalid` survives `map`,
+  `map2` on two `Invalid`s concatenates errors, `sequence` and
+  `traverse` agree on the all-`Valid` path.
+
 ## [0.14.0] - 2026-05-08
 
 ### Added
