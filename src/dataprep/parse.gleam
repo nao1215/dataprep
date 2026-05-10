@@ -122,6 +122,12 @@ fn assemble_scientific(
 ) -> Result(Float, Nil) {
   use mantissa <- result.try(parse_lenient_float(mantissa_str))
   use exp <- result.try(int.parse(exp_str))
+  // IEEE 754 doubles cap at ~1.8e308. `math:pow(10, n)` for n > 308
+  // raises Erlang `Badarith`, which would crash the calling actor.
+  // Underflow (very negative exponents) is left untouched: `math:pow`
+  // silently returns 0.0, so `parse.float("1e-3000", _)` keeps yielding
+  // `Valid(0.0)` exactly as before.
+  use <- bool.guard(when: exp > 308, return: Error(Nil))
   use power <- result.map(float.power(10.0, of: int.to_float(exp)))
   mantissa *. power
 }
