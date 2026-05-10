@@ -7,6 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Documentation
+
+- README now states the package's intentional **scope policy**: dataprep
+  is a combinator toolkit, not a rule catalog. Domain-specific parsers
+  (`email`, `url`, `uuid`, `iso_datetime`, `ipv4`, ...) are explicitly
+  out of scope, with rationale. This surfaces the design statement
+  previously documented only in `CLAUDE.md`. (#71)
+- README adds a **"Building your own parser" cookbook** with four
+  recipes (`positive_int`, `bounded_string`, `uuid_v4_lowercase`,
+  `enum_of_strings_ci`) showing how `prep` + `rules` + `validator` +
+  `parse` compose into the parsers callers commonly want. Every
+  recipe is verified by the new `test/dataprep/cookbook_test.gleam`
+  test module so future API changes will surface as test failures
+  rather than stale docs. (#71)
+- README adds a **"Out of scope, by design"** list naming
+  `email`/`url`/`uri`, `iso_datetime`/time, `uuid`/`ulid`, JSON
+  shape validation, and HTML/XML sanitisation as the categories
+  the package will not absorb, with a one-line "why" per category. (#71)
+- Modules table: `parse` now lists `float_strict` alongside `int` and
+  `float`. The function existed in 0.15.0 but was missing from the
+  table. (#71)
+
 ## [0.15.0] - 2026-05-09
 
 ### Added
