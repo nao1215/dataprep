@@ -324,7 +324,7 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `from_result_map`, `to_result`, `map2`..`map5`, `sequence`, `traverse`, `traverse_indexed`. |
 | `dataprep/non_empty_list` | At-least-one guarantee for error lists: `single`, `cons`, `append`, `concat`, `map`, `flat_map`, `to_list`, `from_list`. |
 | `dataprep/rules` | Built-in rules: `not_empty`, `not_blank`, `matches`, `matches_string`, `matches_string_checked`, `matches_fully`, `matches_fully_string`, `matches_fully_string_checked`, `min_length`, `max_length`, `length_between`, `min_int`, `max_int`, `min_float`, `max_float`, `non_negative_int`, `non_negative_float`, `one_of`, `equals`. |
-| `dataprep/parse` | Parse helpers: `int`, `float`. Bridge `String` to typed `Validated` with custom error mapping. |
+| `dataprep/parse` | Parse helpers: `int`, `float`, `float_strict`. Bridge `String` to typed `Validated` with custom error mapping. |
 
 ## Composition overview
 
@@ -341,6 +341,148 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | Collection | `validated.sequence` / `traverse` | Accumulate all | Validate a list of values |
 | Collection | `validator.each` | Accumulate all | Apply a validator to every list element |
 | Collection | `validator.optional` | (none if None) | Skip validation for absent values |
+
+## Scope policy
+
+dataprep is a **combinator toolkit**, not a rule catalog. The library
+deliberately ships only the building blocks needed to construct
+typed, error-accumulating validators:
+
+- infallible string transforms (`prep`),
+- generic checks (`validator`, `rules`),
+- applicative error accumulation (`validated`, `non_empty_list`),
+- `String` to `Int` / `Float` parsers (`parse`).
+
+Domain-specific parsers (`email`, `url`, `uuid`, `iso_datetime`,
+`ipv4`, ...) are intentionally **not in scope**. The recommended
+path is to compose the primitives above into the parser you need,
+or to depend on a domain-specific package alongside dataprep.
+
+See "Building your own parser" below for the recipes.
+
+## Building your own parser
+
+The recipes below cover the common shapes a caller actually wants.
+Each recipe uses only the public API and is verified by the tests in
+`test/dataprep/cookbook_test.gleam`.
+
+The recipes share one error type so they can be combined inside the
+same form-validation flow:
+
+```gleam
+pub type Err {
+  NotAnInteger(raw: String)
+  NotPositive
+  WrongLength(min: Int, max: Int, got: Int)
+  NotUuid(raw: String)
+  NotAllowed(raw: String)
+}
+```
+
+### Recipe 1: `positive_int`
+
+Parse to `Int`, then enforce `> 0`. Uses `validated.and_then` to
+short-circuit when the parse itself fails.
+
+```gleam
+import dataprep/parse
+import dataprep/validated.{type Validated}
+import dataprep/validator
+
+fn positive_int(raw: String) -> Validated(Int, Err) {
+  use n <- validated.and_then(parse.int(raw, NotAnInteger))
+  validator.predicate(fn(x) { x > 0 }, NotPositive)(n)
+}
+```
+
+### Recipe 2: `bounded_string`
+
+Trim, then enforce length is in `[min, max]`.
+
+```gleam
+import dataprep/prep
+import dataprep/rules
+import dataprep/validated.{type Validated}
+import gleam/string
+
+fn bounded_string(
+  min: Int,
+  max: Int,
+) -> fn(String) -> Validated(String, Err) {
+  fn(raw: String) {
+    let trimmed = prep.run(prep: prep.trim(), value: raw)
+    rules.length_between(
+      minimum: min,
+      maximum: max,
+      error: WrongLength(min, max, string.length(trimmed)),
+    )(trimmed)
+  }
+}
+```
+
+### Recipe 3: `uuid_v4_lowercase`
+
+Trim, lowercase, then regex match. Demonstrates `prep.then` for
+chained infallible normalisation before validation.
+
+```gleam
+import dataprep/prep
+import dataprep/rules
+import dataprep/validated.{type Validated}
+
+fn uuid_v4_lowercase(raw: String) -> Validated(String, Err) {
+  let normalized =
+    prep.run(
+      prep: prep.then(first: prep.trim(), next: prep.lowercase()),
+      value: raw,
+    )
+  rules.matches_fully_string(
+    pattern: "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
+    error: NotUuid(raw),
+  )(normalized)
+}
+```
+
+### Recipe 4: `enum_of_strings_ci`
+
+Case-insensitive match against a fixed allow-list. Returns a
+parameterised validator so callers can vary the allowed set.
+
+```gleam
+import dataprep/prep
+import dataprep/rules
+import dataprep/validated.{type Validated}
+
+fn enum_of_strings_ci(
+  allowed: List(String),
+) -> fn(String) -> Validated(String, Err) {
+  fn(raw: String) {
+    let normalized = prep.run(prep: prep.lowercase(), value: raw)
+    rules.one_of(allowed: allowed, error: NotAllowed(raw))(normalized)
+  }
+}
+```
+
+The composition pattern is the same in every case: `prep.run` to
+normalise the raw input, then a `rules` or `validator` combinator
+to check the normalised value, then optionally `validated.and_then`
+to chain a follow-up step that depends on a successful prior step.
+
+## Out of scope, by design
+
+The following are intentionally not provided by dataprep, even
+though some of them appear in adjacent libraries in other languages:
+
+- `email`, `url`, `uri` parsing (use a URI- or email-specific package)
+- `iso_datetime` / time arithmetic (use a `gleam_time`-shaped package)
+- `uuid` / `ulid` generation (use a UUID-shaped package)
+- JSON shape validation (use a JSON-schema package)
+- HTML / XML sanitisation (use a sanitiser package)
+
+These have implementation-defining standards or substantial spec
+surface that would push dataprep from "small primitives" toward
+"kitchen sink." Keeping the scope tight is what lets the
+combinators stay composable.
 
 ## Development
 
