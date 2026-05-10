@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-05-11
+
 ### Documentation
 
 - README now states the package's intentional **scope policy**: dataprep
