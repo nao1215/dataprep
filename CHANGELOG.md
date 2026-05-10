@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `parse.float_strict` now accepts standard scientific notation with an
+  explicit `+` sign on the exponent (e.g. `"1.5e+2"`, `"5e+3"`,
+  `"1.5E+10"`). Previously the strict-grammar regex only allowed an
+  optional `-` on the exponent, so inputs that the lenient `parse.float`
+  accepted — and that every standard float grammar (IEEE 754,
+  ECMAScript, Python, Rust, Go) accepts — were incorrectly rejected.
+  This restores the documented invariant that strict is a subset of
+  lenient. (#74)
+
 ## [0.16.0] - 2026-05-11
 
 ### Documentation

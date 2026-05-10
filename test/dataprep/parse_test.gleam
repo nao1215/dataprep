@@ -137,6 +137,21 @@ pub fn float_strict_scientific_uppercase_test() -> Nil {
   assert parse.float_strict("5E3", NotAFloat) == Valid(5000.0)
 }
 
+pub fn float_strict_scientific_explicit_plus_exponent_test() -> Nil {
+  // Standard scientific notation (IEEE 754, ECMAScript, Python, Rust, Go)
+  // accepts a leading `+` on the exponent. Strict must accept what lenient
+  // accepts -- the docstring guarantees strict is a subset of lenient. (#74)
+  assert parse.float_strict("1.5e+2", NotAFloat) == Valid(150.0)
+}
+
+pub fn float_strict_scientific_explicit_plus_exponent_integer_mantissa_test() -> Nil {
+  assert parse.float_strict("5e+3", NotAFloat) == Valid(5000.0)
+}
+
+pub fn float_strict_scientific_explicit_plus_exponent_uppercase_test() -> Nil {
+  assert parse.float_strict("1.5E+10", NotAFloat) == Valid(15_000_000_000.0)
+}
+
 pub fn float_strict_rejects_thousand_separator_comma_test() -> Nil {
   // The whole point of float_strict: lenient parse silently returns
   // 3.0 here; strict must reject so locale-formatted thousand
