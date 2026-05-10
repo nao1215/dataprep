@@ -94,7 +94,7 @@ pub fn float_strict(
 fn strict_float_grammar_matches(raw: String) -> Bool {
   // nolint: assert_ok_pattern -- the strict-float regex is a fixed, known-valid literal
   let assert Ok(strict_re) =
-    regexp.from_string("^-?(?:\\d+\\.\\d+|\\d+)(?:[eE]-?\\d+)?$")
+    regexp.from_string("^-?(?:\\d+\\.\\d+|\\d+)(?:[eE][+-]?\\d+)?$")
   regexp.check(with: strict_re, content: raw)
 }
 
