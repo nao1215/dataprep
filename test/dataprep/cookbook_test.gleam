@@ -76,8 +76,8 @@ fn uuid_v4_lowercase(raw: String) -> Validated(String, Err) {
       prep: prep.then(first: prep.trim(), next: prep.lowercase()),
       value: raw,
     )
-  rules.matches_string(
-    pattern: "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+  rules.matches_fully_string(
+    pattern: "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
     error: NotUuid(raw),
   )(normalized)
 }
