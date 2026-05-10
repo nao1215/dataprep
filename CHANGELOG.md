@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-05-10
+
 ### Fixed
 
 - `parse.float_strict` now accepts standard scientific notation with an
