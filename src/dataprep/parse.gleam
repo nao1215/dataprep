@@ -99,6 +99,17 @@ fn strict_float_grammar_matches(raw: String) -> Bool {
 }
 
 fn parse_lenient_float(raw: String) -> Result(Float, Nil) {
+  // Pre-check the scientific exponent so we never call the target's
+  // float parser with an exponent that would overflow IEEE 754 doubles.
+  // Erlang's `binary_to_float` plus our `math:pow` fallback raises
+  // `Badarith`; JavaScript's `parseFloat` silently returns `Infinity`.
+  // Both targets need the same rejection contract, so we guard here.
+  // Underflow (very negative exponents) is intentionally left alone —
+  // both targets round it to 0.0 without raising.
+  use <- bool.guard(
+    when: has_overflowing_scientific_exponent(raw),
+    return: Error(Nil),
+  )
   case float.parse(raw) {
     Ok(x) -> Ok(x)
     Error(Nil) ->
@@ -106,6 +117,25 @@ fn parse_lenient_float(raw: String) -> Result(Float, Nil) {
         Ok(n) -> Ok(int.to_float(n))
         Error(Nil) -> parse_scientific(raw)
       }
+  }
+}
+
+fn has_overflowing_scientific_exponent(raw: String) -> Bool {
+  case string.split_once(string.lowercase(raw), on: "e") {
+    Error(Nil) -> False
+    Ok(#(_, exp_str)) -> {
+      // The strict-float grammar (and every mainstream float parser)
+      // accepts an explicit `+` on the exponent. Normalise it away
+      // before parsing as Int.
+      let exp_str = case string.starts_with(exp_str, "+") {
+        True -> string.drop_start(exp_str, 1)
+        False -> exp_str
+      }
+      case int.parse(exp_str) {
+        Ok(exp) -> exp > 308
+        Error(Nil) -> False
+      }
+    }
   }
 }
 

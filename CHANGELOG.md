@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `parse.float` and `parse.float_strict` no longer panic with Erlang
+  `Badarith` on scientific-notation inputs whose exponent overflows the
+  IEEE 754 double range (e.g. `"1e309"`, `"1.5e3000"`, `"-1e309"`).
+  Previously the call to `gleam/float.power` raised at the BEAM level
+  and crashed the calling actor or HTTP handler; the function now
+  funnels the overflow into the documented `Invalid` shape that its
+  `Validated(Float, e)` return type already promises. The
+  boundary-preserving input `"1e308"` continues to return
+  `Valid(1.0e308)`, and the underflow case `"1e-3000"` keeps returning
+  `Valid(0.0)` (the IEEE 754 underflow-to-zero behaviour is intentional
+  per the asymmetry note in #77). (#77)
+
 ## [0.17.0] - 2026-05-10
 
 ### Fixed

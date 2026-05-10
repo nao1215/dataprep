@@ -111,6 +111,45 @@ pub fn float_rejects_garbage_with_e_test() -> Nil {
     == Invalid(non_empty_list.single(NotAFloat("abc")))
 }
 
+// --- parse.float scientific notation overflow (#77) ---
+//
+// `gleam/float.power` calls Erlang's `math:pow/2`, which raises `Badarith`
+// once the result exceeds the IEEE 754 double range (~1.8e308). Before
+// the fix, `parse.float("1e309", _)` panicked the calling actor instead
+// of returning the `Invalid` shape the type signature promises.
+
+pub fn float_accepts_exponent_at_upper_boundary_test() -> Nil {
+  assert parse.float("1e308", NotAFloat) == Valid(1.0e308)
+}
+
+pub fn float_rejects_exponent_just_past_upper_boundary_test() -> Nil {
+  assert parse.float("1e309", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("1e309")))
+}
+
+pub fn float_rejects_far_overflow_exponent_test() -> Nil {
+  assert parse.float("1.5e3000", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("1.5e3000")))
+}
+
+pub fn float_rejects_overflow_exponent_with_negative_mantissa_test() -> Nil {
+  assert parse.float("-1e309", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("-1e309")))
+}
+
+pub fn float_preserves_underflow_to_zero_test() -> Nil {
+  // `math:pow(10, -3000)` underflows to 0.0 without raising Badarith,
+  // so the lenient behaviour stays Valid(0.0) — only overflow is
+  // funnelled into Invalid. This codifies the choice documented in
+  // #77's "asymmetry" note.
+  assert parse.float("1e-3000", NotAFloat) == Valid(0.0)
+}
+
+pub fn float_strict_rejects_overflow_exponent_test() -> Nil {
+  assert parse.float_strict("1e309", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("1e309")))
+}
+
 // --- parse.float_strict (#67) ---
 
 pub fn float_strict_pass_test() -> Nil {
