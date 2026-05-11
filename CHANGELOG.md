@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `parse.float` and `parse.float_strict` no longer panic with Erlang
+  `badarg` on plain-digit inputs whose magnitude exceeds the IEEE 754
+  double range (e.g. `"9"` repeated 309 times, or any decimal integer
+  literal with more than 308 digits). Previously the call to
+  `gleam/int.to_float` invoked the BEAM's `erlang:float/1` BIF, which
+  raised at the runtime level and crashed the calling actor or HTTP
+  handler. The function now funnels the overflow into the documented
+  `Invalid` shape that its `Validated(Float, e)` return type already
+  promises, consistently with the scientific-notation overflow path
+  fixed in #77. (#80)
+
 ## [0.18.0] - 2026-05-11
 
 ### Fixed
