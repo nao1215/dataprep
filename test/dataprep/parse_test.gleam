@@ -3,6 +3,7 @@ import dataprep/parse
 import dataprep/rules
 import dataprep/validated.{Invalid, Valid}
 import dataprep/validator
+import gleam/string
 
 type Err {
   NotAnInteger(raw: String)
@@ -148,6 +149,39 @@ pub fn float_preserves_underflow_to_zero_test() -> Nil {
 pub fn float_strict_rejects_overflow_exponent_test() -> Nil {
   assert parse.float_strict("1e309", NotAFloat)
     == Invalid(non_empty_list.single(NotAFloat("1e309")))
+}
+
+// --- parse.float plain-integer overflow (#80) ---
+
+pub fn float_accepts_long_digit_at_upper_boundary_test() -> Nil {
+  let raw = string.repeat("9", 308)
+  // nolint: assert_ok_pattern -- a 308-digit integer literal stays within the IEEE 754 range
+  let assert Valid(_) = parse.float(raw, NotAFloat)
+  Nil
+}
+
+pub fn float_rejects_long_digit_overflow_test() -> Nil {
+  let raw = string.repeat("9", 309)
+  assert parse.float(raw, NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat(raw)))
+}
+
+pub fn float_rejects_far_overflow_long_digit_test() -> Nil {
+  let raw = string.repeat("9", 1000)
+  assert parse.float(raw, NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat(raw)))
+}
+
+pub fn float_rejects_negative_long_digit_overflow_test() -> Nil {
+  let raw = "-" <> string.repeat("9", 309)
+  assert parse.float(raw, NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat(raw)))
+}
+
+pub fn float_strict_rejects_long_digit_overflow_test() -> Nil {
+  let raw = string.repeat("9", 309)
+  assert parse.float_strict(raw, NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat(raw)))
 }
 
 // --- parse.float_strict (#67) ---

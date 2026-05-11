@@ -6,6 +6,7 @@ import dataprep/validated.{type Validated, Invalid, Valid}
 import gleam/bool
 import gleam/float
 import gleam/int
+import gleam/list
 import gleam/regexp
 import gleam/result
 import gleam/string
@@ -110,11 +111,26 @@ fn parse_lenient_float(raw: String) -> Result(Float, Nil) {
     when: has_overflowing_scientific_exponent(raw),
     return: Error(Nil),
   )
+  // Plain-integer literals (no decimal point, no `e`) with more than
+  // 308 significant digits overflow IEEE 754 doubles. On Erlang
+  // `int.to_float` -> `erlang:float/1` raises `badarg`; on JavaScript
+  // `parseInt` already returns `Infinity` (Gleam's `Int` on JS is a
+  // `Number`, not a `BigInt`). Both targets need to funnel this case
+  // into `Invalid`, so we guard on the raw string before either parser
+  // sees it. (#80)
+  use <- bool.guard(
+    when: has_overflowing_plain_integer_literal(raw),
+    return: Error(Nil),
+  )
   case float.parse(raw) {
     Ok(x) -> Ok(x)
     Error(Nil) ->
       case int.parse(raw) {
-        Ok(n) -> Ok(int.to_float(n))
+        Ok(n) ->
+          case has_overflowing_integer_magnitude(n) {
+            True -> Error(Nil)
+            False -> Ok(int.to_float(n))
+          }
         Error(Nil) -> parse_scientific(raw)
       }
   }
@@ -136,6 +152,29 @@ fn has_overflowing_scientific_exponent(raw: String) -> Bool {
         Error(Nil) -> False
       }
     }
+  }
+}
+
+fn has_overflowing_integer_magnitude(n: Int) -> Bool {
+  int.absolute_value(n)
+  |> int.to_string
+  |> string.length
+  > 308
+}
+
+fn has_overflowing_plain_integer_literal(raw: String) -> Bool {
+  let digits = case string.starts_with(raw, "-") {
+    True -> string.drop_start(raw, 1)
+    False -> raw
+  }
+  string.length(digits) > 308
+  && list.all(string.to_graphemes(digits), is_ascii_digit_grapheme)
+}
+
+fn is_ascii_digit_grapheme(g: String) -> Bool {
+  case g {
+    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
+    _ -> False
   }
 }
 
