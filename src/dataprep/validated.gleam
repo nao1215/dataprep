@@ -135,6 +135,58 @@ pub fn map5(
   )
 }
 
+/// Pipe-friendly form of [map2](#map2): takes the receivers first and
+/// the combining function last via the `with` label, so the first
+/// `Validated` can flow in through a pipe.
+///
+/// Equivalent to `map2(f, va, vb)`.
+///
+/// Example:
+///   validate_object(d.object)
+///   |> validated.combine2(validate_seeing(d.seeing), with: fn(o, s) {
+///     #(o, s)
+///   })
+pub fn combine2(
+  va: Validated(a, e),
+  vb: Validated(b, e),
+  with f: fn(a, b) -> c,
+) -> Validated(c, e) {
+  map2(f, va, vb)
+}
+
+/// Pipe-friendly form of [map3](#map3). See [combine2](#combine2).
+pub fn combine3(
+  va: Validated(a, e),
+  vb: Validated(b, e),
+  vc: Validated(c, e),
+  with f: fn(a, b, c) -> d,
+) -> Validated(d, e) {
+  map3(f, va, vb, vc)
+}
+
+/// Pipe-friendly form of [map4](#map4). See [combine2](#combine2).
+pub fn combine4(
+  va: Validated(a, e),
+  vb: Validated(b, e),
+  vc: Validated(c, e),
+  vd: Validated(d, e),
+  with f: fn(a, b, c, d) -> out,
+) -> Validated(out, e) {
+  map4(f, va, vb, vc, vd)
+}
+
+/// Pipe-friendly form of [map5](#map5). See [combine2](#combine2).
+pub fn combine5(
+  va: Validated(a, e),
+  vb: Validated(b, e),
+  vc: Validated(c, e),
+  vd: Validated(d, e),
+  ve: Validated(e_, e),
+  with f: fn(a, b, c, d, e_) -> out,
+) -> Validated(out, e) {
+  map5(f, va, vb, vc, vd, ve)
+}
+
 /// Combine a list of Validated values into a Validated list.
 /// All errors from all elements are accumulated.
 /// Returns Valid([]) for an empty input list.

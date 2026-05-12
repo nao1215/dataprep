@@ -334,3 +334,70 @@ pub fn map3_error_order_test() -> Nil {
     )
     == Invalid(nel.make(first: "a", rest: ["b", "c"]))
 }
+
+// --- combine2..combine5 (pipe-friendly aliases for map2..map5) ---
+
+pub fn combine2_pipes_first_validated_test() -> Nil {
+  assert Valid(1)
+    |> validated.combine2(Valid(2), with: fn(a, b) { a + b })
+    == Valid(3)
+}
+
+pub fn combine2_accumulates_errors_test() -> Nil {
+  assert Invalid(non_empty_list.single("a"))
+    |> validated.combine2(Invalid(non_empty_list.single("b")), with: fn(_, _) {
+      Nil
+    })
+    == Invalid(nel.make(first: "a", rest: ["b"]))
+}
+
+pub fn combine3_pipes_first_validated_test() -> Nil {
+  assert Valid(1)
+    |> validated.combine3(Valid(2), Valid(3), with: Triple)
+    == Valid(Triple(1, 2, 3))
+}
+
+pub fn combine3_accumulates_errors_test() -> Nil {
+  assert Invalid(non_empty_list.single("a"))
+    |> validated.combine3(
+      Valid(2),
+      Invalid(non_empty_list.single("c")),
+      with: Triple,
+    )
+    == Invalid(nel.make(first: "a", rest: ["c"]))
+}
+
+pub fn combine4_pipes_first_validated_test() -> Nil {
+  assert Valid(1)
+    |> validated.combine4(Valid(2), Valid(3), Valid(4), with: Quad)
+    == Valid(Quad(1, 2, 3, 4))
+}
+
+pub fn combine4_accumulates_errors_test() -> Nil {
+  assert Invalid(non_empty_list.single("a"))
+    |> validated.combine4(
+      Invalid(non_empty_list.single("b")),
+      Valid(3),
+      Invalid(non_empty_list.single("d")),
+      with: Quad,
+    )
+    == Invalid(nel.make(first: "a", rest: ["b", "d"]))
+}
+
+pub fn combine5_pipes_first_validated_test() -> Nil {
+  assert Valid(1)
+    |> validated.combine5(Valid(2), Valid(3), Valid(4), Valid(5), with: Quint)
+    == Valid(Quint(1, 2, 3, 4, 5))
+}
+
+pub fn combine5_accumulates_errors_test() -> Nil {
+  assert Invalid(non_empty_list.single("a"))
+    |> validated.combine5(
+      Valid(2),
+      Invalid(non_empty_list.single("c")),
+      Valid(4),
+      Invalid(non_empty_list.single("e")),
+      with: Quint,
+    )
+    == Invalid(nel.make(first: "a", rest: ["c", "e"]))
+}
