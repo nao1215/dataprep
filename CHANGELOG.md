@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `validated.combine2`, `combine3`, `combine4`, `combine5`:
+  pipe-friendly aliases of `map2..map5` that take the `Validated`
+  receivers first and the combining function last via the `with`
+  label. The applicative `mapN` form (function-first, mirroring
+  Haskell-style `f <$> va <*> vb <*> ...`) stays for callers who
+  prefer it, but multi-field validators built on this module can
+  now flow through a single pipe — `validate_a(x) |>
+  validated.combine4(validate_b(y), validate_c(z), validate_d(w),
+  with: fn(a, b, c, d) { ... })`. (#83)
+
 ## [0.19.0] - 2026-05-11
 
 ### Fixed
