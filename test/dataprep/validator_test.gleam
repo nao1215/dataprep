@@ -139,6 +139,33 @@ pub fn both_chained_three_test() -> Nil {
     == Invalid(nel.make(first: IsEmpty, rest: [TooShort, TooLong]))
 }
 
+// --- also (alias of both) ---
+
+pub fn also_chained_three_matches_both_test() -> Nil {
+  let v1 = validator.predicate(fn(_: String) { False }, IsEmpty)
+  let v2 = validator.predicate(fn(_: String) { False }, TooShort)
+  let v3 = validator.predicate(fn(_: String) { False }, TooLong)
+
+  let via_also =
+    v1
+    |> validator.also(first: _, second: v2)
+    |> validator.also(first: _, second: v3)
+  let via_both =
+    v1
+    |> validator.both(first: _, second: v2)
+    |> validator.both(first: _, second: v3)
+
+  assert via_also("x") == via_both("x")
+}
+
+pub fn also_accumulates_errors_test() -> Nil {
+  let v1 = validator.predicate(fn(_: String) { False }, TooShort)
+  let v2 = validator.predicate(fn(_: String) { False }, TooLong)
+  let validator_under_test = validator.also(first: v1, second: v2)
+  assert validator_under_test("x")
+    == Invalid(nel.make(first: TooShort, rest: [TooLong]))
+}
+
 // --- all ---
 
 pub fn all_empty_validators_test() -> Nil {
