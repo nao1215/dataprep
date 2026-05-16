@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Added
 
 - `dataprep/validator`: `validator.also/2` as a pipe-friendly alias of `validator.both/2` for chains of three or more error-accumulating checks. Reads as "this check also has to pass" at every step, instead of `both` (which implies two things). Identical semantics — both functions accumulate errors the same way — so the choice is purely stylistic. The `both/2` doc-comment now also points readers at `validator.all([...])` for the list form once chains grow beyond a handful of checks. (#87)
+- `dataprep/validator`: `validator.and_then/2` as the preferred name for the short-circuit prerequisite combinator. Reads as the `Result.try` / `Option.then` idiom callers already know from stdlib and removes the friction with `bool.guard` from gleam_stdlib (which is the opposite "shortcut on condition" idiom). Same semantics as the existing combinator: `pre` runs first; if `Valid`, `main` runs on the same input; otherwise only `pre`'s errors are returned. Errors are NOT accumulated. (#86)
+
+### Deprecated
+
+- `dataprep/validator`: `validator.guard/2` is now deprecated in favour of `validator.and_then/2`. The name collided with `bool.guard` from gleam_stdlib (which has the opposite "shortcut on condition" intuition), and first-time readers had to read the source to be sure which branch fired when. `guard` keeps working as a thin alias of `and_then` — the deprecation triggers a compiler warning at call sites so existing code can migrate at its own pace. (#86)
 
 ## [0.20.0] - 2026-05-12
 

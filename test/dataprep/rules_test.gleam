@@ -270,7 +270,7 @@ pub fn min_max_int_combined_test() -> Nil {
 pub fn not_empty_guard_min_length_test() -> Nil {
   let validator_under_test =
     rules.not_empty(IsEmpty)
-    |> validator.guard(
+    |> validator.and_then(
       pre: _,
       main: rules.min_length(minimum: 3, error: TooShort(3)),
     )

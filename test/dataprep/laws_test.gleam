@@ -136,7 +136,7 @@ pub fn law_guard_short_circuits_on_pre_failure_test() -> Nil {
   let failing_pre = validator.predicate(fn(_: Int) { False }, E1)
   let combined =
     failing_pre
-    |> validator.guard(pre: _, main: fn(_) {
+    |> validator.and_then(pre: _, main: fn(_) {
       // nolint: avoid_panic -- verifies guard short-circuits on pre failure
       panic as "guard must not evaluate main when pre fails"
     })
@@ -151,7 +151,7 @@ pub fn law_guard_does_not_accumulate_test() -> Nil {
   let pre = validator.predicate(fn(_: Int) { False }, E1)
   let main = validator.predicate(fn(_: Int) { False }, E2)
   // E2 must NOT appear: main is never called.
-  assert validator.guard(pre: pre, main: main)(0)
+  assert validator.and_then(pre: pre, main: main)(0)
     == Invalid(non_empty_list.single(E1))
 }
 
@@ -160,10 +160,10 @@ pub fn law_guard_runs_main_on_pre_success_test() -> Nil {
   let pre = validator.predicate(fn(_: Int) { True }, E1)
 
   let main_pass = validator.predicate(fn(_: Int) { True }, E2)
-  assert validator.guard(pre: pre, main: main_pass)(7) == Valid(7)
+  assert validator.and_then(pre: pre, main: main_pass)(7) == Valid(7)
 
   let main_fail = validator.predicate(fn(_: Int) { False }, E2)
-  assert validator.guard(pre: pre, main: main_fail)(7)
+  assert validator.and_then(pre: pre, main: main_fail)(7)
     == Invalid(non_empty_list.single(E2))
 }
 

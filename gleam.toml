@@ -50,3 +50,7 @@ unwrap_used = "error"
 
 [tools.glinter.ignore]
 "test/**/*.gleam" = ["unused_exports"]
+# `validator.guard` is an intentional `@deprecated` alias kept reachable
+# for existing downstream callers; the lint would always fire because
+# the library itself has been migrated to `validator.and_then`.
+"src/dataprep/validator.gleam" = ["unused_exports"]

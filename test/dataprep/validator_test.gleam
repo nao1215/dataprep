@@ -278,22 +278,22 @@ pub fn alt_chained_three_all_fail_test() -> Nil {
     == Invalid(nel.make(first: IsEmpty, rest: [TooShort, TooLong]))
 }
 
-// --- guard ---
+// --- and_then ---
 
-pub fn guard_pre_fails_skips_main_test() -> Nil {
+pub fn and_then_pre_fails_skips_main_test() -> Nil {
   let validator_under_test =
     validator.predicate(fn(s: String) { s != "" }, IsEmpty)
-    |> validator.guard(pre: _, main: fn(_) {
-      // nolint: avoid_panic -- verifies guard short-circuits on pre failure
-      panic as "guard must not evaluate main when pre fails"
+    |> validator.and_then(pre: _, main: fn(_) {
+      // nolint: avoid_panic -- verifies and_then short-circuits on pre failure
+      panic as "and_then must not evaluate main when pre fails"
     })
   assert validator_under_test("") == Invalid(non_empty_list.single(IsEmpty))
 }
 
-pub fn guard_pre_passes_then_main_runs_test() -> Nil {
+pub fn and_then_pre_passes_then_main_runs_test() -> Nil {
   let validator_under_test =
     validator.predicate(fn(s: String) { s != "" }, IsEmpty)
-    |> validator.guard(
+    |> validator.and_then(
       pre: _,
       main: validator.predicate(fn(_) { False }, TooShort),
     )
@@ -301,39 +301,39 @@ pub fn guard_pre_passes_then_main_runs_test() -> Nil {
     == Invalid(non_empty_list.single(TooShort))
 }
 
-pub fn guard_both_pass_test() -> Nil {
+pub fn and_then_both_pass_test() -> Nil {
   let validator_under_test =
     validator.predicate(fn(s: String) { s != "" }, IsEmpty)
-    |> validator.guard(
+    |> validator.and_then(
       pre: _,
       main: validator.predicate(fn(s) { string.length(s) <= 10 }, TooLong),
     )
   assert validator_under_test("hello") == Valid("hello")
 }
 
-pub fn guard_does_not_accumulate_test() -> Nil {
-  // guard is short-circuit, NOT accumulation
+pub fn and_then_does_not_accumulate_test() -> Nil {
+  // and_then is short-circuit, NOT accumulation
   // when pre fails, we only see pre's error, not main's
   let validator_under_test =
     validator.predicate(fn(_: String) { False }, IsEmpty)
-    |> validator.guard(
+    |> validator.and_then(
       pre: _,
       main: validator.predicate(fn(_) { False }, TooShort),
     )
   assert validator_under_test("x") == Invalid(non_empty_list.single(IsEmpty))
 }
 
-pub fn guard_chained_test() -> Nil {
-  // guard(non_empty, guard(min_length, max_length))
+pub fn and_then_chained_test() -> Nil {
+  // and_then(non_empty, and_then(min_length, max_length))
   let validator_under_test =
     validator.predicate(fn(s: String) { s != "" }, IsEmpty)
-    |> validator.guard(
+    |> validator.and_then(
       pre: _,
       main: validator.predicate(
         fn(s: String) { string.length(s) >= 3 },
         TooShort,
       )
-        |> validator.guard(
+        |> validator.and_then(
           pre: _,
           main: validator.predicate(fn(s) { string.length(s) <= 10 }, TooLong),
         ),
@@ -409,7 +409,7 @@ pub fn label_multiple_errors_test() -> Nil {
     )
 }
 
-// --- composition: both + alt + guard ---
+// --- composition: both + alt + and_then ---
 
 pub fn both_then_alt_test() -> Nil {
   // v1: must be non-empty AND short
@@ -433,10 +433,10 @@ pub fn both_then_alt_test() -> Nil {
   assert validator_under_test("abcdefghijk") == Valid("abcdefghijk")
 }
 
-pub fn guard_then_both_test() -> Nil {
+pub fn and_then_composed_with_both_test() -> Nil {
   let validator_under_test =
     validator.predicate(fn(s: String) { s != "" }, IsEmpty)
-    |> validator.guard(
+    |> validator.and_then(
       pre: _,
       main: validator.predicate(
         fn(s: String) { string.length(s) >= 3 },
@@ -451,7 +451,7 @@ pub fn guard_then_both_test() -> Nil {
   assert validator_under_test("hello") == Valid("hello")
 }
 
-// --- each composes with all/both/alt/guard (issue #21) ---
+// --- each composes with all/both/alt/and_then (issue #21) ---
 
 /// Issue #21 reproduction: validate "≤ N items in the list" AND
 /// "each item satisfies X" using `validator.all` over a single
@@ -505,7 +505,7 @@ pub fn each_composes_with_both_over_parent_list_test() -> Nil {
   }
 }
 
-// --- optional composes with all/both/alt/guard (issue #21) ---
+// --- optional composes with all/both/alt/and_then (issue #21) ---
 
 /// Mirror of #21 for `optional`: returns a `Validator(Option(a), e)`
 /// so it can sit in an `all` list alongside other Optional-level
