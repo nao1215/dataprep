@@ -161,10 +161,13 @@ pub fn alt(
 /// semantically depends on pre passing (e.g. "non-empty" before
 /// "regex match").
 ///
-/// Evaluation: pre runs first. If Valid, main runs on the same
-/// input. If pre fails, main is never called and only pre's errors
-/// are returned. Errors are NOT accumulated across pre and main.
-pub fn guard(
+/// Reads as "run `main` *and then* `pre` first" — same idiom as
+/// `result.try` / `option.then`. If `pre` is `Valid`, `main` runs
+/// on the same input; if `pre` fails, `main` is never called and
+/// only `pre`'s errors are returned. Errors are NOT accumulated
+/// across `pre` and `main`. Pair with `validator.both` / `also`
+/// when error accumulation is what you actually want.
+pub fn and_then(
   pre pre: Validator(a, e),
   main main: Validator(a, e),
 ) -> Validator(a, e) {
@@ -174,6 +177,19 @@ pub fn guard(
       Invalid(errs) -> Invalid(errs)
     }
   }
+}
+
+/// Deprecated alias for `and_then/2`. The name collides with
+/// `bool.guard` from gleam_stdlib (which is the "shortcut on
+/// condition" idiom), so first-time readers expect the opposite
+/// branching. `and_then/2` matches the `Result` / `Option` idiom
+/// callers already know from stdlib and removes the friction.
+@deprecated("Use `validator.and_then` instead. `guard` collides with `bool.guard` in stdlib, which has the opposite branching intuition.")
+pub fn guard(
+  pre pre: Validator(a, e),
+  main main: Validator(a, e),
+) -> Validator(a, e) {
+  and_then(pre: pre, main: main)
 }
 
 /// Transform the error type of a validator.

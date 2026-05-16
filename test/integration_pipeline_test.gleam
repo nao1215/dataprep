@@ -53,7 +53,7 @@ fn validate_username(raw: String) -> validated.Validated(String, FormError) {
 
   let check =
     rules.not_empty(Empty)
-    |> validator.guard(
+    |> validator.and_then(
       rules.min_length(3, TooShort(3))
       |> validator.both(rules.max_length(20, TooLong(20))),
     )
@@ -76,7 +76,7 @@ pub fn pipeline_recipe_too_short_test() -> Nil {
 }
 
 pub fn pipeline_recipe_empty_short_circuits_test() -> Nil {
-  // not_empty fires first; validator.guard skips the inner length
+  // not_empty fires first; validator.and_then skips the inner length
   // checks. Only the Empty detail is reported.
   assert validate_username("")
     == Invalid(non_empty_list.single(Field("username", Empty)))

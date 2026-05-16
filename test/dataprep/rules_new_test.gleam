@@ -79,7 +79,7 @@ pub fn matches_with_guard_test() -> Nil {
   let pattern = compile_regexp("^[a-z]+$")
   let validator_under_test =
     rules.not_empty(IsBlank)
-    |> validator.guard(
+    |> validator.and_then(
       pre: _,
       main: rules.matches(pattern: pattern, error: BadFormat),
     )
