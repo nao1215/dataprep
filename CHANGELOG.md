@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `dataprep/validator`: `validator.also/2` as a pipe-friendly alias of `validator.both/2` for chains of three or more error-accumulating checks. Reads as "this check also has to pass" at every step, instead of `both` (which implies two things). Identical semantics — both functions accumulate errors the same way — so the choice is purely stylistic. The `both/2` doc-comment now also points readers at `validator.all([...])` for the list form once chains grow beyond a handful of checks. (#87)
+
 ## [0.20.0] - 2026-05-12
 
 ### Added

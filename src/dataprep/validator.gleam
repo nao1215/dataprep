@@ -69,6 +69,14 @@ pub fn required(error: e) -> Validator(String, e) {
 
 /// Run both validators on the same input. Accumulate all errors.
 /// On success, return the (unchanged) input.
+///
+/// When chaining three or more error-accumulating checks, the pipe
+/// `a |> validator.both(b) |> validator.both(c)` works but reads
+/// awkwardly past two steps — "both" implies two things, not "and
+/// one more". `validator.also/2` is an alias of this function with
+/// the same semantics; pick whichever name fits the call site
+/// better, or use `validator.all([a, b, c])` for the list form
+/// once the chain grows beyond a handful of checks.
 pub fn both(
   first v1: Validator(a, e),
   second v2: Validator(a, e),
@@ -82,6 +90,18 @@ pub fn both(
         Invalid(non_empty_list.append(left: e1, right: e2))
     }
   }
+}
+
+/// Pipe-friendly alias of `validator.both/2` for chains of three or
+/// more error-accumulating checks. Reads as "this check also has to
+/// pass" at every step, instead of `both` (which implies two things).
+/// Identical semantics — picks the same error-accumulation behaviour
+/// — so the choice is purely stylistic.
+pub fn also(
+  first v1: Validator(a, e),
+  second v2: Validator(a, e),
+) -> Validator(a, e) {
+  both(first: v1, second: v2)
 }
 
 /// Run all validators on the same input. Accumulate all errors.
