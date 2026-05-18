@@ -71,7 +71,7 @@ pub fn validate_user(name: String, age: Int) -> Validated(User, Err) {
 > **Note on composing rules:** Each `rules.*` function returns a
 > *validator* (`fn(a) -> Validated(a, e)`), not a transformed value.
 > You cannot pipe one rule into another directly — use `validator.both`
-> to run checks in parallel (accumulating errors) or `validator.guard`
+> to run checks in parallel (accumulating errors) or `validator.and_then`
 > to short-circuit (skip later checks if an earlier one fails):
 >
 > ```gleam
@@ -84,7 +84,7 @@ pub fn validate_user(name: String, age: Int) -> Validated(User, Err) {
 > // ✓ Correct — combine validators explicitly
 > let check =
 >   rules.not_empty(Empty)
->   |> validator.guard(rules.min_length(3, TooShort))
+>   |> validator.and_then(rules.min_length(3, TooShort))
 > ```
 
 ## Examples
@@ -113,7 +113,7 @@ pub fn validate_username(raw: String) -> Validated(String, FormError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
   let check =
     rules.not_empty(Empty)
-    |> validator.guard(
+    |> validator.and_then(
       rules.min_length(3, TooShort(3))
       |> validator.both(rules.max_length(20, TooLong(20))),
     )
@@ -188,7 +188,7 @@ fn validate_name(raw: String) -> Validated(String, SignupError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
   let check =
     rules.not_empty(Empty)
-    |> validator.guard(rules.min_length(2, TooShort(2)))
+    |> validator.and_then(rules.min_length(2, TooShort(2)))
     |> validator.label("name", Field)
   raw |> clean |> check
 }
@@ -320,7 +320,7 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | Module | Responsibility |
 |--------|---------------|
 | `dataprep/prep` | Infallible transformations: `trim`, `lowercase`, `uppercase`, `collapse_space` (ASCII whitespace only), `collapse_unicode_space` (full Unicode `\s`), `replace`, `default`, `default_when_blank`. Compose with `then` or `sequence`. |
-| `dataprep/validator` | Checks without transformation: `check`, `predicate`, `both`, `all`, `alt`, `guard`, `map_error`, `label`, `each`, `optional`. |
+| `dataprep/validator` | Checks without transformation: `check`, `predicate`, `both`, `all`, `alt`, `and_then`, `map_error`, `label`, `each`, `optional`. |
 | `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `from_result_map`, `to_result`, `map2`..`map5`, `sequence`, `traverse`, `traverse_indexed`. |
 | `dataprep/non_empty_list` | At-least-one guarantee for error lists: `single`, `cons`, `append`, `concat`, `map`, `flat_map`, `to_list`, `from_list`. |
 | `dataprep/rules` | Built-in rules: `not_empty`, `not_blank`, `matches`, `matches_string`, `matches_string_checked`, `matches_fully`, `matches_fully_string`, `matches_fully_string_checked`, `min_length`, `max_length`, `length_between`, `min_int`, `max_int`, `min_float`, `max_float`, `non_negative_int`, `non_negative_float`, `one_of`, `equals`. |
@@ -333,7 +333,7 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | Prep | `prep.then` | (none) | Chain infallible transforms |
 | Validate | `validator.both` / `all` | Accumulate all | Independent checks on same value |
 | Validate | `validator.alt` | Accumulate on full failure | Accept alternative forms |
-| Validate | `validator.guard` | Short-circuit | Skip if prerequisite fails |
+| Validate | `validator.and_then` | Short-circuit | Skip if prerequisite fails |
 | Combine | `validated.map2`..`map5` | Accumulate all | Build domain types from independent fields |
 | Bridge | `validated.and_then` | Short-circuit | Parse then validate (type changes) |
 | Bridge | `parse.int` / `parse.float` | Short-circuit | String to typed Validated in one step |
