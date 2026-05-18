@@ -65,7 +65,7 @@ pub fn validate_user(name: String, age: Int) -> Validated(User, Err) {
 }
 
 // validate_user("  Alice ", 25)   -> Valid(User("alice", 25))
-// validate_user("", -1)           -> Invalid([NameEmpty, AgeTooYoung])
+// validate_user("", -1)           -> Invalid (errors: NameEmpty, AgeTooYoung)
 ```
 
 > **Note on composing rules:** Each `rules.*` function returns a
@@ -123,9 +123,20 @@ pub fn validate_username(raw: String) -> Validated(String, FormError) {
 }
 
 // validate_username("  Al  ")
-//   -> Invalid([Field("username", TooShort(3))])
+//   -> Invalid (errors: Field("username", TooShort(3)))
 // validate_username("  Alice  ")
 //   -> Valid("alice")
+```
+
+`Invalid` wraps a `NonEmptyList(e)` (opaque), not a `List(e)`, so you cannot pattern-match the errors with list-literal syntax. To surface the errors, drain the `NonEmptyList` with `non_empty_list.head/1` (the first error — useful for fail-fast UIs) or `non_empty_list.to_list/1` (every error — useful for form-level summaries):
+
+```gleam
+import dataprep/non_empty_list
+import dataprep/validated
+
+let assert validated.Invalid(nel) = validate_username("  Al  ")
+let first = non_empty_list.head(nel)
+let all = non_empty_list.to_list(nel)
 ```
 
 ### Parse then validate
@@ -154,8 +165,8 @@ pub fn validate_age(raw: String) -> Validated(Int, AgeError) {
   |> validated.and_then(check_range)
 }
 
-// validate_age("abc") -> Invalid([NotAnInteger("abc")])
-// validate_age("200") -> Invalid([TooOld(150)])
+// validate_age("abc") -> Invalid (errors: NotAnInteger("abc"))
+// validate_age("200") -> Invalid (errors: TooOld(150))
 // validate_age("25")  -> Valid(25)
 ```
 
@@ -223,11 +234,11 @@ pub fn validate_signup(
 }
 
 // validate_signup("", "", 200)
-//   -> Invalid([
+//   -> Invalid (errors:
 //        Field("name", Empty),
 //        Field("email", Empty),
 //        Field("age", OutOfRange(0, 150)),
-//      ])
+//      )
 ```
 
 ### Pattern matching with `rules.matches` / `matches_string`
@@ -285,7 +296,7 @@ pub fn validate_with(
 }
 
 // validate_tag("ok-1") -> Valid("ok-1")
-// validate_tag("BAD!") -> Invalid([BadFormat])
+// validate_tag("BAD!") -> Invalid (errors: BadFormat)
 ```
 
 ### `default` vs `default_when_blank`
