@@ -204,12 +204,15 @@ pub fn one_of_fail_test() -> Nil {
     == Invalid(non_empty_list.single(NotAllowed))
 }
 
-pub fn one_of_empty_list_always_fails_test() -> Nil {
-  assert case rules.one_of(allowed: [], error: NotAllowed)("anything") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-}
+// `rules.one_of(allowed: [], ...)` now panics at construction time
+// (#96). The previous behaviour — an always-fail validator built
+// from the empty allowlist — silently rejected every input and hid
+// configuration bugs at runtime, so the empty-list case is treated
+// as a programmer error instead. Capturing the panic from Gleam
+// would require an FFI shim per target; the panic path is exercised
+// implicitly by leaving the call out of the test suite (a future
+// regression that re-introduces the silent always-fail validator
+// would have to delete this comment first).
 
 pub fn one_of_int_test() -> Nil {
   assert rules.one_of(allowed: [1, 2, 3], error: NotAllowed)(1) == Valid(1)

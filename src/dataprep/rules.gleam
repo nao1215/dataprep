@@ -325,17 +325,22 @@ pub fn non_negative_float(error: e) -> Validator(Float, e) {
 
 /// Fails if the value is not in the allowed list.
 ///
-/// Edge case — empty `allowed` list: a set-membership check against
-/// the empty set has no inhabitants, so every input fails with
-/// `error`. This is a programmer error rather than a runtime
-/// condition; the library does not raise it because rule constructors
-/// are pure and never panic. Either construct the rule with a
-/// non-empty allowlist, or guard at the call site (e.g.,
-/// `case allowed { [] -> ...; [_, ..] -> rules.one_of(allowed, e) }`)
-/// when the allowlist comes from configuration or other dynamic
-/// input.
+/// `allowed` must be non-empty: a set-membership check against the
+/// empty set has no inhabitants, so any validator built from `[]`
+/// would silently reject every input. That is a programmer error
+/// rather than a runtime condition, so `one_of` panics at
+/// construction time with a message naming the function rather than
+/// returning a permanently-always-fail validator. Guard at the call
+/// site if the allowlist comes from configuration or other dynamic
+/// input (e.g.,
+/// `case allowed { [] -> ...; [_, ..] -> rules.one_of(allowed, e) }`).
 pub fn one_of(allowed allowed: List(a), error error: e) -> Validator(a, e) {
-  validator.predicate(fn(a) { list.contains(allowed, a) }, error)
+  case allowed {
+    [] ->
+      // nolint: avoid_panic -- empty allowlist is a programmer error; an always-fail validator would silently reject every input
+      panic as "dataprep/rules.one_of: allowed list must be non-empty"
+    [_, ..] -> validator.predicate(fn(a) { list.contains(allowed, a) }, error)
+  }
 }
 
 /// Fails if the value does not equal the expected value.
