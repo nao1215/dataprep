@@ -144,11 +144,24 @@ pub fn collapse_unicode_space() -> Prep(String) {
 }
 
 /// Replace all occurrences of target with replacement.
+///
+/// `target` must be non-empty. The empty string matches at every
+/// position (including between every byte and at both ends of the
+/// input), which the underlying `string.replace` handles by leaving
+/// the input untouched — that is a silent no-op and almost always
+/// indicates the caller swapped the arguments or fed in an
+/// unintended runtime value, so the empty-target case is rejected
+/// at construction time with a panic that names the function.
 pub fn replace(
   target target: String,
   replacement replacement: String,
 ) -> Prep(String) {
-  fn(s) { string.replace(in: s, each: target, with: replacement) }
+  case target {
+    "" ->
+      // nolint: avoid_panic -- empty target is a programmer error; the underlying string.replace silently no-ops, which hides the bug at runtime
+      panic as "dataprep/prep.replace: target must be non-empty"
+    _ -> fn(s) { string.replace(in: s, each: target, with: replacement) }
+  }
 }
 
 /// Replace the value with fallback when the input is exactly the
