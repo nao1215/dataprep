@@ -41,10 +41,11 @@ pub fn not_blank(error: e) -> Validator(String, e) {
 /// `[0-9]+` accepts `"abc123def"` because the digit run matches
 /// somewhere in the input. To require the entire string to match,
 /// either anchor the pattern explicitly with `^...$`, or reach for
-/// `matches_fully` which enforces full-string semantics regardless
-/// of whether the pattern is anchored. The validation use case
-/// almost always wants `matches_fully`; `matches` is exposed for
-/// the cases that genuinely need substring search.
+/// `matches_fully_string` which enforces full-string semantics by
+/// anchoring the pattern source as `^(?:...)$` internally. The
+/// validation use case almost always wants `matches_fully_string`;
+/// `matches` is exposed for the cases that genuinely need
+/// substring search.
 ///
 /// Takes a pre-compiled `Regexp` so a malformed pattern surfaces as
 /// a `regexp.from_string` error at the call site instead of
@@ -64,52 +65,6 @@ pub fn matches(
   error error: e,
 ) -> Validator(String, e) {
   validator.predicate(fn(s) { regexp.check(re, s) }, error)
-}
-
-/// Fails if the regex does not match the entire input string. Unlike
-/// `matches`, a partial / substring hit is **not** enough — the
-/// matched substring must equal the whole input.
-///
-/// **Caveat — alternation:** because this function only has the
-/// already-compiled `Regexp`, it cannot re-anchor the pattern
-/// internally. The check is implemented by inspecting the first
-/// match returned by `regexp.scan`, which is leftmost-first. For
-/// patterns that use top-level alternation, the engine may pick a
-/// shorter alternative even though a longer one would also match
-/// the full input — e.g. `a|ab` on `"ab"` selects `a` and the
-/// validator then reports `Invalid` even though `re.fullmatch`
-/// would accept it. If your pattern uses `|`, prefer
-/// `matches_fully_string` / `matches_fully_string_checked` (which
-/// anchor the source pattern with `^(?:...)$` before compiling), or
-/// anchor the pattern explicitly yourself before passing it in.
-///
-/// For non-alternating patterns this matches Python's `re.fullmatch`
-/// semantics: anchoring with `^...$` is therefore not required, and
-/// patterns that already include `^` / `$` continue to work — the
-/// anchors just become redundant.
-///
-/// Example:
-///   import gleam/regexp
-///   import dataprep/rules
-///
-///   let assert Ok(re) = regexp.from_string("[0-9]+")
-///   let check = rules.matches_fully(pattern: re, error: NotANumber)
-///
-///   check("123")        // Valid("123")
-///   check("abc123def")  // Invalid([NotANumber])  -- substring match rejected
-pub fn matches_fully(
-  pattern re: regexp.Regexp,
-  error error: e,
-) -> Validator(String, e) {
-  validator.predicate(
-    fn(s) {
-      case regexp.scan(re, s) {
-        [Match(content: c, ..), ..] -> c == s
-        [] -> False
-      }
-    },
-    error,
-  )
 }
 
 /// Fails if the string does not match the given regular expression
@@ -149,6 +104,18 @@ pub fn matches_string(
     }
   }
 }
+
+// `matches_fully(pattern: regexp.Regexp, error: e)` was removed in
+// v0.22.0 because it cannot reliably implement Python `re.fullmatch`
+// semantics for top-level alternation: the function received an
+// already-compiled `regexp.Regexp` whose source pattern Gleam's
+// stdlib does not expose, which left no way to re-anchor the pattern
+// as `^(?:...)$`. Without anchoring the engine's leftmost-first
+// match for inputs like `a|ab` against `"ab"` returns `"a"` and the
+// validator reports `Invalid`. Use `matches_fully_string` (or
+// `matches_fully_string_checked`) with the original pattern source
+// instead — both compile the anchored pattern internally and
+// produce the expected `re.fullmatch` behaviour. See issue #95.
 
 /// Fails if the regex does not match the entire input string.
 /// Compiles the pattern internally with explicit anchors

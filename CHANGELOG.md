@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- `dataprep/rules`: `rules.matches_fully(pattern: regexp.Regexp, error: e)` is removed. The function took an already-compiled `Regexp` whose source pattern Gleam's `gleam/regexp` does not expose, which left no way to re-anchor the pattern as `^(?:...)$`; that prevented it from implementing Python `re.fullmatch` semantics for top-level alternation (`a|ab` against `"ab"` was rejected via leftmost-first matching). `rules.matches_fully_string(pattern: String, error: e)` and `rules.matches_fully_string_checked(pattern: String, error: e)` already compile the anchored pattern internally and behave correctly for all patterns; migrate by passing the pattern source string instead of a precompiled `Regexp`. **Breaking**. (#95)
+
 ## [0.21.0] - 2026-05-16
 
 ### Added

@@ -129,49 +129,34 @@ pub fn matches_string_unanchored_pattern_accepts_substring_hit_test() -> Nil {
     == Valid("abc123def")
 }
 
-// --- matches_fully ---
+// --- matches_fully_string: full-match-semantics scenarios ---
+// These previously exercised the removed `matches_fully(pattern:
+// Regexp, ...)` against compiled Regexps. After #95 the only public
+// "full match" entry point is `matches_fully_string`, which compiles
+// the pattern source itself and anchors as `^(?:...)$` — the same
+// behavioural scenarios live here against that API.
 
 pub fn matches_fully_full_match_passes_test() -> Nil {
-  let pattern = compile_regexp("[0-9]+")
-  assert rules.matches_fully(pattern: pattern, error: BadFormat)("123")
+  assert rules.matches_fully_string(pattern: "[0-9]+", error: BadFormat)("123")
     == Valid("123")
 }
 
-pub fn matches_fully_substring_hit_is_rejected_test() -> Nil {
-  let pattern = compile_regexp("[0-9]+")
-  assert rules.matches_fully(pattern: pattern, error: BadFormat)("abc123def")
-    == Invalid(non_empty_list.single(BadFormat))
-}
-
 pub fn matches_fully_no_match_at_all_is_rejected_test() -> Nil {
-  let pattern = compile_regexp("[0-9]+")
-  assert rules.matches_fully(pattern: pattern, error: BadFormat)("abc")
-    == Invalid(non_empty_list.single(BadFormat))
-}
-
-pub fn matches_fully_already_anchored_pattern_still_works_test() -> Nil {
-  // Patterns that already anchor with ^...$ continue to work — the
-  // anchors just become redundant under `matches_fully`.
-  let pattern = compile_regexp("^[a-z]+$")
-  assert rules.matches_fully(pattern: pattern, error: BadFormat)("abc")
-    == Valid("abc")
-  assert rules.matches_fully(pattern: pattern, error: BadFormat)("abc1")
+  assert rules.matches_fully_string(pattern: "[0-9]+", error: BadFormat)("abc")
     == Invalid(non_empty_list.single(BadFormat))
 }
 
 pub fn matches_fully_empty_input_with_star_pattern_test() -> Nil {
   // `.*` matches the empty string, and the empty match equals the
   // empty input — full-match semantics.
-  let pattern = compile_regexp(".*")
-  assert rules.matches_fully(pattern: pattern, error: BadFormat)("")
+  assert rules.matches_fully_string(pattern: ".*", error: BadFormat)("")
     == Valid("")
 }
 
 pub fn matches_fully_empty_input_with_plus_pattern_test() -> Nil {
   // `.+` requires at least one character; the empty input has no
   // match at all and is rejected.
-  let pattern = compile_regexp(".+")
-  assert rules.matches_fully(pattern: pattern, error: BadFormat)("")
+  assert rules.matches_fully_string(pattern: ".+", error: BadFormat)("")
     == Invalid(non_empty_list.single(BadFormat))
 }
 
