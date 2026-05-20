@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Changed
 
+- `dataprep/rules`: `rules.length_between(minimum: m, maximum: n, error: e)` with `m > n` now panics at construction time with `dataprep/rules.length_between: minimum (m) must be <= maximum (n)` instead of silently returning an always-fail validator. An inverted `[min, max]` interval has no inhabitants, so any validator built from it would reject every input — that is a programmer error and is surfaced as one. Guard the bounds at the call site when `min`/`max` come from configuration or other dynamic input. **Breaking** for callers that relied on the silent always-fail behaviour. (#97)
 - `dataprep/rules`: `rules.one_of(allowed: [], error: e)` now panics at construction time with `dataprep/rules.one_of: allowed list must be non-empty` instead of silently returning an always-fail validator. A set-membership check against the empty set has no inhabitants, so any validator built from `[]` would reject every input — that is a programmer error and is surfaced as one. Guard at the call site when the allowlist comes from configuration or other dynamic input (e.g., `case allowed { [] -> ...; [_, ..] -> rules.one_of(allowed, e) }`). **Breaking** for callers that relied on the silent always-fail behaviour. (#96)
 
 ### Removed

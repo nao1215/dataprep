@@ -1,5 +1,6 @@
 import dataprep/validator.{type Validator}
 import gleam/float
+import gleam/int
 import gleam/list
 import gleam/order
 import gleam/regexp.{Match}
@@ -271,26 +272,41 @@ pub fn max_length(maximum max: Int, error error: e) -> Validator(String, e) {
 
 /// Fails if the string length is outside [min, max].
 ///
-/// Edge case — `min > max`: the resulting validator is vacuously
-/// unsatisfiable (no string length can be both `>= min` and `<= max`),
-/// so every input fails with `error`. This is a programmer error
-/// rather than a runtime condition; the library does not raise it
-/// because rule constructors are pure and never panic. Construct the
-/// rule yourself with a sane range, or guard the bounds at the call
-/// site (e.g., `case min <= max { True -> ...; False -> ... }`) when
-/// `min`/`max` come from configuration or other dynamic input.
+/// `min` must be less than or equal to `max`: an inverted range
+/// produces a vacuously unsatisfiable predicate (no string length can
+/// be both `>= min` and `<= max` when `min > max`), so any validator
+/// built from it would silently reject every input. That is a
+/// programmer error rather than a runtime condition, so
+/// `length_between` panics at construction time with a message
+/// naming the function and the offending bounds rather than returning
+/// a permanently-always-fail validator. Guard the bounds at the call
+/// site when `min`/`max` come from configuration or other dynamic
+/// input.
 pub fn length_between(
   minimum min: Int,
   maximum max: Int,
   error error: e,
 ) -> Validator(String, e) {
-  validator.predicate(
-    fn(s) {
-      let len = string.length(s)
-      len >= min && len <= max
-    },
-    error,
-  )
+  case min > max {
+    True -> {
+      let msg =
+        "dataprep/rules.length_between: minimum ("
+        <> int.to_string(min)
+        <> ") must be <= maximum ("
+        <> int.to_string(max)
+        <> ")"
+      // nolint: avoid_panic -- inverted [min, max] is a programmer error; an always-fail validator would silently reject every input
+      panic as msg
+    }
+    False ->
+      validator.predicate(
+        fn(s) {
+          let len = string.length(s)
+          len >= min && len <= max
+        },
+        error,
+      )
+  }
 }
 
 /// Fails if the int is less than min.
