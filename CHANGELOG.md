@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.22.0] - 2026-05-20
+
 ### Changed
 
 - `dataprep/prep`: `prep.replace(target: "", replacement: _)` now panics at construction time with `dataprep/prep.replace: target must be non-empty` instead of building a no-op transform. The underlying `gleam/string.replace` silently leaves the input untouched when the target is empty (the empty string matches at every position, which has no meaningful "replace once" interpretation), so the empty-target case used to hide caller typos like swapped argument labels. Guard at the call site when `target` comes from configuration or user input. **Breaking** for callers that relied on the silent no-op behaviour. (#99)
