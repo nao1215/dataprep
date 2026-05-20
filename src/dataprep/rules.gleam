@@ -261,13 +261,49 @@ pub fn matches_fully_string_checked(
 }
 
 /// Fails if the string length is less than min.
+///
+/// `min` must be non-negative. A negative `min` makes the predicate
+/// vacuously true (`string.length` is always `>= 0 > min`) and the
+/// resulting validator silently accepts every input — most callers
+/// who reach a negative value here have a config or arithmetic bug,
+/// not a deliberate "always-pass" intent, so the case is rejected
+/// at construction time with a panic that names the function and
+/// echoes the offending value.
 pub fn min_length(minimum min: Int, error error: e) -> Validator(String, e) {
-  validator.predicate(fn(s) { string.length(s) >= min }, error)
+  case min < 0 {
+    True -> {
+      let msg =
+        "dataprep/rules.min_length: minimum ("
+        <> int.to_string(min)
+        <> ") must be >= 0"
+      // nolint: avoid_panic -- negative minimum is a programmer error; an always-pass validator would silently accept every input
+      panic as msg
+    }
+    False -> validator.predicate(fn(s) { string.length(s) >= min }, error)
+  }
 }
 
 /// Fails if the string length exceeds max.
+///
+/// `max` must be non-negative. A negative `max` makes the predicate
+/// vacuously false (`string.length` is always `>= 0 > max`) and the
+/// resulting validator silently rejects every input — same reasoning
+/// as `min_length`: callers who reach a negative value here usually
+/// have a config bug rather than a deliberate "always-fail" intent,
+/// so the case is rejected at construction time with a panic that
+/// names the function and echoes the offending value.
 pub fn max_length(maximum max: Int, error error: e) -> Validator(String, e) {
-  validator.predicate(fn(s) { string.length(s) <= max }, error)
+  case max < 0 {
+    True -> {
+      let msg =
+        "dataprep/rules.max_length: maximum ("
+        <> int.to_string(max)
+        <> ") must be >= 0"
+      // nolint: avoid_panic -- negative maximum is a programmer error; an always-fail validator would silently reject every input
+      panic as msg
+    }
+    False -> validator.predicate(fn(s) { string.length(s) <= max }, error)
+  }
 }
 
 /// Fails if the string length is outside [min, max].
