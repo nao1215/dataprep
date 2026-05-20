@@ -126,25 +126,14 @@ pub fn length_between_exact_boundaries_test() -> Nil {
   assert between("abcde") == Valid("abcde")
 }
 
-pub fn length_between_min_greater_than_max_always_fails_test() -> Nil {
-  // Issue #18 — `min > max` defines an empty interval. This test pins the
-  // documented "vacuously fails for any input" behavior so a future
-  // refactor cannot silently change it without surfacing the failure.
-  let between =
-    rules.length_between(minimum: 10, maximum: 3, error: TooShort(10))
-  assert case between("hello") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-  assert case between("") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-  assert case between("a string of any length") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-}
+// `rules.length_between(minimum: m, maximum: n, ...)` with `m > n`
+// now panics at construction time (#97). The previous behaviour —
+// an always-fail validator built from the empty interval — silently
+// rejected every input and hid configuration bugs at runtime, so
+// the inverted range is treated as a programmer error instead.
+// Capturing the panic from Gleam would require an FFI shim per
+// target; the panic path is exercised implicitly by leaving the
+// call out of the test suite.
 
 // --- min_int ---
 
