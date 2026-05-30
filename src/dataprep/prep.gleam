@@ -36,6 +36,18 @@ import gleam/string
 pub type Prep(a) =
   fn(a) -> a
 
+/// Reason a `_checked` constructor could not build a prep from the
+/// supplied arguments. The panicking constructors (`replace`) reject the
+/// same cases at construction time; the `_checked` siblings surface them
+/// as data so callers with runtime-supplied arguments can recover.
+pub type PrepError {
+  /// `replace_checked` was called with an empty `target`. The empty
+  /// string matches at every position, which the underlying
+  /// `string.replace` turns into a silent no-op — almost always a
+  /// swapped-argument or unintended-runtime-value bug.
+  EmptyTarget
+}
+
 /// Sequential composition: apply p1, then apply p2 to the result.
 ///
 /// FP-leaning users often grep for `compose` first; `prep.compose/2`
@@ -156,11 +168,37 @@ pub fn replace(
   target target: String,
   replacement replacement: String,
 ) -> Prep(String) {
-  case target {
-    "" ->
+  case replace_checked(target:, replacement:) {
+    Ok(prepper) -> prepper
+    Error(EmptyTarget) ->
       // nolint: avoid_panic -- empty target is a programmer error; the underlying string.replace silently no-ops, which hides the bug at runtime
       panic as "dataprep/prep.replace: target must be non-empty"
-    _ -> fn(s) { string.replace(in: s, each: target, with: replacement) }
+  }
+}
+
+/// `Result`-returning companion to [`replace`](#replace) for callers
+/// whose `target` comes from runtime input (user-typed search fields,
+/// configuration, CSV columns) rather than a known-good literal. Returns
+/// `Error(EmptyTarget)` instead of panicking when `target` is empty, so
+/// the empty-target case can be handled as data:
+///
+/// ```gleam
+/// case prep.replace_checked(target: user_find, replacement: user_with) {
+///   Ok(prepper) -> Ok(prepper(input))
+///   Error(prep.EmptyTarget) -> Error("search text must not be empty")
+/// }
+/// ```
+///
+/// For a non-empty `target` the returned prep is identical to the one
+/// `replace` builds — `replace` is defined in terms of this function, so
+/// the two cannot drift apart.
+pub fn replace_checked(
+  target target: String,
+  replacement replacement: String,
+) -> Result(Prep(String), PrepError) {
+  case target {
+    "" -> Error(EmptyTarget)
+    _ -> Ok(fn(s) { string.replace(in: s, each: target, with: replacement) })
   }
 }
 
