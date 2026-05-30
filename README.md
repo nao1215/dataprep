@@ -332,7 +332,7 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 |--------|---------------|
 | `dataprep/prep` | Infallible transformations: `trim`, `lowercase`, `uppercase`, `collapse_space` (ASCII whitespace only), `collapse_unicode_space` (full Unicode `\s`), `replace`, `default`, `default_when_blank`. Compose with `then` or `sequence`. |
 | `dataprep/validator` | Checks without transformation: `check`, `predicate`, `both`, `all`, `alt`, `and_then`, `map_error`, `label`, `each`, `optional`. |
-| `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `from_result_map`, `to_result`, `map2`..`map5`, `sequence`, `traverse`, `traverse_indexed`. |
+| `dataprep/validated` | Applicative error accumulation: `map`, `map_error`, `and_then`, `from_result`, `from_result_map`, `to_result`, `map2`..`map5`, `combine2`..`combine5` (pipe-friendly, fixed arity), `and_map` (pipe-friendly applicative chain, any arity), `sequence`, `traverse`, `traverse_indexed`. |
 | `dataprep/non_empty_list` | At-least-one guarantee for error lists: `single`, `cons`, `append`, `concat`, `map`, `flat_map`, `to_list`, `from_list`. |
 | `dataprep/rules` | Built-in rules: `not_empty`, `not_blank`, `matches`, `matches_string`, `matches_string_checked`, `matches_fully`, `matches_fully_string`, `matches_fully_string_checked`, `min_length`, `max_length`, `length_between`, `min_int`, `max_int`, `min_float`, `max_float`, `non_negative_int`, `non_negative_float`, `one_of`, `equals`. |
 | `dataprep/parse` | Parse helpers: `int`, `float`, `float_strict`. Bridge `String` to typed `Validated` with custom error mapping. |
@@ -345,7 +345,7 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | Validate | `validator.both` / `all` | Accumulate all | Independent checks on same value |
 | Validate | `validator.alt` | Accumulate on full failure | Accept alternative forms |
 | Validate | `validator.and_then` | Short-circuit | Skip if prerequisite fails |
-| Combine | `validated.map2`..`map5` | Accumulate all | Build domain types from independent fields |
+| Combine | `validated.map2`..`map5` / `combine2`..`combine5` / `and_map` | Accumulate all | Build domain types from independent fields (use `combineN` / `and_map` to pipe the first value in) |
 | Bridge | `validated.and_then` | Short-circuit | Parse then validate (type changes) |
 | Bridge | `parse.int` / `parse.float` | Short-circuit | String to typed Validated in one step |
 | Bridge | `raw \|> prep \|> validator` | (prep has none) | Apply infallible transform before validation |
