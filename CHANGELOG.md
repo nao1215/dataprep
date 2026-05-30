@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.23.0] - 2026-05-30
+
 ### Added
 
 - `dataprep/prep`: `prep.replace_checked(target:, replacement:) -> Result(Prep(String), PrepError)` is a `Result`-returning companion to `prep.replace` for callers whose `target` comes from runtime input (search fields, configuration, CSV) rather than a known-good literal. It returns `Error(EmptyTarget)` instead of panicking on an empty target, matching the `_checked` convention used elsewhere in the package. `prep.replace` is now defined in terms of `replace_checked` (panicking on `Error(EmptyTarget)`), so the checked and unchecked constructors cannot drift. The new `PrepError` type (variant `EmptyTarget`) names the failure. (#106)
