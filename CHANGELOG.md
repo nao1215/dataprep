@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `dataprep/validated`: `validated.and_map(vf, va)` is an applicative-apply companion that lets the first `Validated` value flow into a pipe and chain to any number of further values — `v1 |> validated.map(curried) |> validated.and_map(v2) |> validated.and_map(v3)` — accumulating errors from every `Invalid` in the chain in left-to-right order. The existing `map2`..`map5` keep the function-first shape for direct calls and `combine2`..`combine5` cover the fixed-arity pipe shape; `and_map` fills the arbitrary-arity pipe gap that callers starting from the value-first `validated.map` expected. Re-verification follow-up to #83. (#107)
+
 ## [0.22.0] - 2026-05-20
 
 ### Changed

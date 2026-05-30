@@ -401,3 +401,74 @@ pub fn combine5_accumulates_errors_test() -> Nil {
     )
     == Invalid(nel.make(first: "a", rest: ["c", "e"]))
 }
+
+// --- and_map (applicative chain, regression guard for #107) ---
+//
+// #107 re-reported #83: `map2..5` take the function first, so a `Validated`
+// value cannot flow into them through a pipe. `combine2..5` already cover the
+// fixed-arity pipe shape; `and_map` covers the arbitrary-arity applicative
+// chain `v1 |> map(curried) |> and_map(v2) |> and_map(v3) |> ...`. These tests
+// pin both the happy path AND error accumulation so the ergonomic trap the
+// closed issue described cannot silently come back.
+
+pub fn and_map_pipe_chain_valid_test() -> Nil {
+  // The exact Definition-of-Done shape from issue #107 (Option 2).
+  assert Valid(1)
+    |> validated.map(fn(a) { fn(b) { fn(c) { a + b + c } } })
+    |> validated.and_map(Valid(2))
+    |> validated.and_map(Valid(3))
+    == Valid(6)
+}
+
+pub fn and_map_two_values_test() -> Nil {
+  assert Valid(10)
+    |> validated.map(fn(a) { fn(b) { a + b } })
+    |> validated.and_map(Valid(5))
+    == Valid(15)
+}
+
+pub fn and_map_accumulates_all_errors_test() -> Nil {
+  // The applicative contract: every Invalid in the chain contributes its
+  // errors, in left-to-right order. This is the property a function-first
+  // `map2` pipe could never express ergonomically.
+  assert Invalid(non_empty_list.single("a"))
+    |> validated.map(fn(a) { fn(b) { fn(c) { #(a, b, c) } } })
+    |> validated.and_map(Invalid(non_empty_list.single("b")))
+    |> validated.and_map(Invalid(non_empty_list.single("c")))
+    == Invalid(nel.make(first: "a", rest: ["b", "c"]))
+}
+
+pub fn and_map_mixed_valid_invalid_test() -> Nil {
+  assert Valid(1)
+    |> validated.map(fn(a) { fn(b) { fn(c) { a + b + c } } })
+    |> validated.and_map(Invalid(non_empty_list.single("b")))
+    |> validated.and_map(Valid(3))
+    == Invalid(nel.make(first: "b", rest: []))
+}
+
+pub fn and_map_invalid_function_keeps_its_errors_test() -> Nil {
+  // When the left (function) side already carries errors and the right side
+  // is Valid, the function-side errors survive untouched.
+  assert Invalid(non_empty_list.single("fn-err"))
+    |> validated.and_map(Valid(99))
+    == Invalid(nel.make(first: "fn-err", rest: []))
+}
+
+pub fn and_map_chain_matches_map3_test() -> Nil {
+  // Regression anchor: the new pipe-friendly chain must agree with the
+  // existing low-level `map3` for the same inputs — both the valid result
+  // and the accumulated-error result — so the two surfaces cannot drift.
+  let chain = fn(va, vb, vc) {
+    va
+    |> validated.map(fn(a) { fn(b) { fn(c) { Triple(a, b, c) } } })
+    |> validated.and_map(vb)
+    |> validated.and_map(vc)
+  }
+
+  assert chain(Valid(1), Valid(2), Valid(3))
+    == validated.map3(Triple, Valid(1), Valid(2), Valid(3))
+
+  let e_a = Invalid(non_empty_list.single("a"))
+  let e_c = Invalid(non_empty_list.single("c"))
+  assert chain(e_a, Valid(2), e_c) == validated.map3(Triple, e_a, Valid(2), e_c)
+}

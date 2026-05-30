@@ -135,6 +135,35 @@ pub fn map5(
   )
 }
 
+/// Applicative apply: feed the next `Validated` argument into a
+/// `Validated` function, accumulating errors from both sides.
+///
+/// This is the pipe-friendly, arbitrary-arity companion to
+/// [map2](#map2)..[map5](#map5). Where `combine2`..`combine5` cover the
+/// fixed-arity cases, `and_map` lets the first `Validated` value flow in
+/// through a pipe and chain to any number of further values:
+///
+///   v1
+///   |> map(fn(a) { fn(b) { fn(c) { f(a, b, c) } } })
+///   |> and_map(v2)
+///   |> and_map(v3)
+///
+/// Like `map2`, it is error-accumulating: every `Invalid` in the chain
+/// contributes its errors in left-to-right order, so a fully-invalid
+/// chain reports all of its problems at once rather than short-circuiting.
+pub fn and_map(
+  func vf: Validated(fn(a) -> b, e),
+  value va: Validated(a, e),
+) -> Validated(b, e) {
+  case vf, va {
+    Valid(f), Valid(a) -> Valid(f(a))
+    Valid(_), Invalid(ea) -> Invalid(ea)
+    Invalid(ef), Valid(_) -> Invalid(ef)
+    Invalid(ef), Invalid(ea) ->
+      Invalid(non_empty_list.append(left: ef, right: ea))
+  }
+}
+
 /// Pipe-friendly form of [map2](#map2): takes the receivers first and
 /// the combining function last via the `with` label, so the first
 /// `Validated` can flow in through a pipe.
