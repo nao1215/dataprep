@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `dataprep/prep`: `prep.replace_checked(target:, replacement:) -> Result(Prep(String), PrepError)` is a `Result`-returning companion to `prep.replace` for callers whose `target` comes from runtime input (search fields, configuration, CSV) rather than a known-good literal. It returns `Error(EmptyTarget)` instead of panicking on an empty target, matching the `_checked` convention used elsewhere in the package. `prep.replace` is now defined in terms of `replace_checked` (panicking on `Error(EmptyTarget)`), so the checked and unchecked constructors cannot drift. The new `PrepError` type (variant `EmptyTarget`) names the failure. (#106)
 - `dataprep/validated`: `validated.and_map(vf, va)` is an applicative-apply companion that lets the first `Validated` value flow into a pipe and chain to any number of further values — `v1 |> validated.map(curried) |> validated.and_map(v2) |> validated.and_map(v3)` — accumulating errors from every `Invalid` in the chain in left-to-right order. The existing `map2`..`map5` keep the function-first shape for direct calls and `combine2`..`combine5` cover the fixed-arity pipe shape; `and_map` fills the arbitrary-arity pipe gap that callers starting from the value-first `validated.map` expected. Re-verification follow-up to #83. (#107)
 
 ## [0.22.0] - 2026-05-20

@@ -1,4 +1,5 @@
 import dataprep/prep
+import gleam/result
 
 // --- identity ---
 
@@ -149,6 +150,40 @@ pub fn replace_absent_target_test() -> Nil {
 
 pub fn replace_to_empty_test() -> Nil {
   assert prep.replace(target: "e", replacement: "")("hello") == "hllo"
+}
+
+// --- replace_checked (runtime-supplied target, regression guard for #106) ---
+//
+// prep.replace panics at construction time on an empty target. That is the
+// right default for known-good code, but runtime-supplied targets (user input,
+// config, CSV) need a recoverable path. replace_checked returns the same prep
+// as replace for a valid target, and Error(EmptyTarget) instead of panicking.
+// These tests pin that the two constructors agree so they cannot drift.
+
+pub fn replace_checked_valid_target_test() -> Nil {
+  assert prep.replace_checked(target: "-", replacement: "_")
+    |> result.map(fn(prepper) { prepper("foo-bar-baz") })
+    == Ok("foo_bar_baz")
+}
+
+pub fn replace_checked_empty_target_is_error_test() -> Nil {
+  assert prep.replace_checked(target: "", replacement: "X")
+    == Error(prep.EmptyTarget)
+}
+
+pub fn replace_checked_matches_replace_for_valid_target_test() -> Nil {
+  // Regression anchor: the checked Ok path must behave identically to the
+  // unchecked constructor for the same valid arguments.
+  let unchecked = prep.replace(target: "e", replacement: "3")
+  assert prep.replace_checked(target: "e", replacement: "3")
+    |> result.map(fn(checked) { checked("level eleven") })
+    == Ok(unchecked("level eleven"))
+}
+
+pub fn replace_checked_no_match_test() -> Nil {
+  assert prep.replace_checked(target: "x", replacement: "y")
+    |> result.map(fn(prepper) { prepper("hello") })
+    == Ok("hello")
 }
 
 // --- default ---
