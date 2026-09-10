@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- `gleam.toml` now declares `gleam = ">= 1.14.0"`, the oldest compiler that builds and tests the package unchanged; `gleam_stdlib` 1.0 already requires it. CI tests both that floor and the latest Gleam 1.x.
+
 ## [0.23.0] - 2026-05-30
 
 ### Added
