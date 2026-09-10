@@ -10,14 +10,16 @@ jobs:
     name: Publish to Hex
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: extractions/setup-just@v4
 
+      # Same as the latest lane in ci.yml; `just ci` runs `gleam format --check`,
+      # and formatter output differs between compiler versions.
       - uses: erlef/setup-beam@v1
         with:
-          otp-version: "27"
-          gleam-version: "1.15"
+          otp-version: "29"
+          gleam-version: "1.x"
 
       - run: just ci
       - run: echo 'I am not using semantic versioning' | gleam publish -y

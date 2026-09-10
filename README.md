@@ -2,6 +2,8 @@
 
 [![CI](https://github.com/nao1215/dataprep/actions/workflows/ci.yml/badge.svg)](https://github.com/nao1215/dataprep/actions/workflows/ci.yml)
 [![Hex.pm](https://img.shields.io/hexpm/v/dataprep)](https://hex.pm/packages/dataprep)
+[![Hex Downloads](https://img.shields.io/hexpm/dt/dataprep)](https://hex.pm/packages/dataprep)
+[![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/dataprep/)
 
 
 ![dataprep_logo](https://raw.githubusercontent.com/nao1215/dataprep/main/doc/img/dataprep-logo-small.png)
@@ -18,7 +20,7 @@ dataprep is a combinator toolkit, not a rule catalog.
 
 ## Requirements
 
-- Gleam 1.15 or later
+- Gleam 1.14 or later
 - Erlang/OTP 27 or later (when targeting Erlang)
 - Node.js 18 or later (when targeting JavaScript)
 

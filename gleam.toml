@@ -3,6 +3,7 @@ version = "0.23.0"
 description = "Composable, type-driven preprocessing and validation combinator library"
 licences = ["MIT"]
 repository = { type = "github", user = "nao1215", repo = "dataprep" }
+gleam = ">= 1.14.0"
 
 [dependencies]
 gleam_stdlib = ">= 0.44.0 and < 2.0.0"
