@@ -4,6 +4,7 @@
 [![Hex.pm](https://img.shields.io/hexpm/v/dataprep)](https://hex.pm/packages/dataprep)
 [![Hex Downloads](https://img.shields.io/hexpm/dt/dataprep)](https://hex.pm/packages/dataprep)
 [![Hex Docs](https://img.shields.io/badge/hex-docs-ffaff3)](https://hexdocs.pm/dataprep/)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/nao1215/dataprep/badge)](https://scorecard.dev/viewer/?uri=github.com/nao1215/dataprep)
 
 
 ![dataprep_logo](https://raw.githubusercontent.com/nao1215/dataprep/main/doc/img/dataprep-logo-small.png)
