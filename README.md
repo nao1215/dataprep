@@ -516,16 +516,19 @@ Contributions are welcome. See [CONTRIBUTING.md](https://github.com/nao1215/data
 
 ## Verifying releases
 
-Each GitHub Release attaches the package tarball (`dataprep-<version>.tar`), `checksums.txt`, a cosign signature bundle for it (`checksums.txt.sigstore.json`) and the build provenance (`dataprep-<version>.intoto.jsonl`). Download them from the release page, then verify:
+Each GitHub Release attaches the Hex package tarball (`dataprep-<version>.tar`),
+`checksums.txt`, a cosign signature bundle (`checksums.txt.sigstore.json`) and
+build provenance (`dataprep-<version>.intoto.jsonl`). Download the assets, then:
 
 ```sh
 gh attestation verify dataprep-<version>.tar --repo nao1215/dataprep
 
-sha256sum -c checksums.txt
-cosign verify-blob --bundle checksums.txt.sigstore.json \
-  --certificate-identity-regexp '^https://github.com/nao1215/dataprep/' \
+cosign verify-blob \
+  --bundle checksums.txt.sigstore.json \
+  --certificate-identity-regexp '^https://github\.com/nao1215/dataprep/\.github/workflows/release\.yml@refs/tags/v' \
   --certificate-oidc-issuer https://token.actions.githubusercontent.com \
   checksums.txt
+sha256sum --check checksums.txt
 ```
 
 ## License
