@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- The release workflow now creates the GitHub Release and attaches the package tarball, `checksums.txt`, its cosign signature (`checksums.txt.sigstore.json`) and build provenance (`.intoto.jsonl`). See "Verifying releases" in the README.
+
 ## [0.24.0] - 2026-09-10
 
 ### Changed
