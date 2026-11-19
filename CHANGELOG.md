@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Removed
+
+- Breaking: `validator.guard`, the deprecated alias of `validator.and_then`; call `validator.and_then`. The recipes and `doc/laws.md` now use `and_then`.
+
 ### Added
 
 - The release workflow now creates the GitHub Release and attaches the package tarball, `checksums.txt`, its cosign signature (`checksums.txt.sigstore.json`) and build provenance (`.intoto.jsonl`). See "Verifying releases" in the README.

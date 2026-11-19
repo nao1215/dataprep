@@ -19,7 +19,7 @@ checks input.** Wire them in that order.
 
 `Prep` and `Validator` form a clean two-stage pipeline. `Prep` runs
 through `then` / `sequence`; `Validator` runs through `validator.both`
-/ `validator.guard` / etc.; they meet at the boundary where you call
+/ `validator.and_then` / etc.; they meet at the boundary where you call
 the validator on the prep'd value.
 
 ## Why two types?
@@ -32,7 +32,7 @@ the validator on the prep'd value.
 - `Validator(a, e) = fn(a) -> Validated(a, e)`. **Fallible**, returns
   `Validated(a, e)` (= `Valid(a) | Invalid(NonEmptyList(e))`).
   Composes monadically via `validator.both` (accumulate) and
-  `validator.guard` (short-circuit). Errors are *your* domain types,
+  `validator.and_then` (short-circuit). Errors are *your* domain types,
   not strings.
 
 Splitting them keeps each type's algebra clean. A single
@@ -58,7 +58,7 @@ The canonical pipeline:
 2. **Apply the prep** to the raw input to get a normalised value.
 3. **Build a `Validator`** with the rules the normalised value must
    satisfy. Compose with `validator.both` (accumulate) /
-   `validator.guard` (short-circuit) / `validator.label` (attach
+   `validator.and_then` (short-circuit) / `validator.label` (attach
    field name).
 4. **Apply the validator** to the prep'd value to get a
    `Validated(a, e)`.
@@ -89,7 +89,7 @@ pub fn validate_username(raw: String) -> Validated(String, FormError) {
   // Step 3: build the validator
   let check =
     rules.not_empty(Empty)
-    |> validator.guard(
+    |> validator.and_then(
       rules.min_length(3, TooShort(3))
       |> validator.both(rules.max_length(20, TooLong(20))),
     )
@@ -177,7 +177,7 @@ pub fn validate_signup(
 
   let name_check =
     rules.not_empty(Empty)
-    |> validator.guard(rules.min_length(2, TooShort(2)))
+    |> validator.and_then(rules.min_length(2, TooShort(2)))
     |> validator.label("name", Field)
 
   let email_check =

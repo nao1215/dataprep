@@ -21,7 +21,7 @@ across every release for downstream code to remain correct:
    threading values manually.
 2. **Accumulation vs short-circuit must stay distinct.** Combinators are
    chosen on this basis: users reach for `both` / `all` / `each` / `mapN`
-   when they want every error reported at once, and for `guard` / `alt` /
+   when they want every error reported at once, and for `alt` /
    `and_then` when they want the first failure to stop further work.
    Silently flipping any of these would corrupt every error report
    downstream.
@@ -34,7 +34,7 @@ across every release for downstream code to remain correct:
 ### Input preservation
 
 If `v(x)` returns `Valid(y)`, then `x == y`. The combinators (`both`,
-`all`, `alt`, `guard`, `optional`, `each`) all return the original input
+`all`, `alt`, `and_then`, `optional`, `each`) all return the original input
 on success rather than the inner result, because the inner result must
 itself satisfy this law.
 
@@ -74,21 +74,21 @@ If both `v1(x)` and `v2(x)` are `Invalid`, the result is
 `Invalid(e1 ++ e2)`. If the first fails and the second succeeds, the
 result is the second's `Valid`.
 
-### `guard` short-circuits on prerequisite failure
+### `and_then` short-circuits on prerequisite failure
 
 If `pre(x) = Invalid(e)`, `main` is **never evaluated**. The result is
 `Invalid(e)`. The test enforces this with a `panic` sentinel as `main`.
 
-### `guard` does NOT accumulate
+### `and_then` does NOT accumulate
 
-Even when `main(x)` would also fail, `guard(pre, main)(x)` only carries
-`pre`'s errors when `pre` fails. This is what distinguishes `guard` from
-`both` / `all` and is the reason to reach for `guard` when later checks
+Even when `main(x)` would also fail, `and_then(pre, main)(x)` only carries
+`pre`'s errors when `pre` fails. This is what distinguishes `and_then` from
+`both` / `all` and is the reason to reach for `and_then` when later checks
 depend on earlier ones (e.g. "non-empty before regex match").
 
-### `guard` runs main on prerequisite success
+### `and_then` runs main on prerequisite success
 
-If `pre(x) = Valid(_)`, `guard(pre, main)(x) = main(x)` exactly.
+If `pre(x) = Valid(_)`, `and_then(pre, main)(x) = main(x)` exactly.
 
 ### `optional` short-circuits on `None`
 

@@ -9,7 +9,7 @@
 ///
 /// Modules:
 ///   dataprep/prep           -- Infallible transformations and composition
-///   dataprep/validator      -- Checks, combinators (both, all, alt, guard)
+///   dataprep/validator      -- Checks, combinators (both, all, alt, and_then)
 ///   dataprep/validated      -- Applicative error accumulation (map2..map5)
 ///   dataprep/non_empty_list -- At-least-one guarantee for error lists
 ///   dataprep/rules          -- Built-in validation rules
@@ -27,7 +27,7 @@ pub type Prep(a) =
 
 /// Check without transformation: fn(a) -> Validated(a, e). If v(x) returns
 /// Valid(y), then x == y. See `dataprep/validator` for builders (`check`,
-/// `predicate`) and combinators (`both`, `all`, `alt`, `guard`).
+/// `predicate`) and combinators (`both`, `all`, `alt`, `and_then`).
 pub type Validator(a, e) =
   validator.Validator(a, e)
 

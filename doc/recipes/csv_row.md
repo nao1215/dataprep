@@ -37,7 +37,7 @@ fn validate_name(raw: String) -> Validated(String, RowError) {
   let clean = prep.trim()
   let check =
     rules.not_empty(Empty)
-    |> validator.guard(rules.max_length(100, TooLong(100)))
+    |> validator.and_then(rules.max_length(100, TooLong(100)))
     |> validator.label("name", Cell)
 
   raw |> clean |> check
