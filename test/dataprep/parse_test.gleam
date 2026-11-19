@@ -166,6 +166,13 @@ pub fn float_rejects_long_digit_overflow_test() -> Nil {
     == Invalid(non_empty_list.single(NotAFloat(raw)))
 }
 
+pub fn float_accepts_long_decimal_literal_test() -> Nil {
+  // More than 308 characters, but not a plain integer: the decimal point
+  // keeps it out of the integer-overflow guard, and its value is 1.0.
+  let raw = "1." <> string.repeat("0", 320)
+  assert parse.float(raw, NotAFloat) == Valid(1.0)
+}
+
 pub fn float_rejects_far_overflow_long_digit_test() -> Nil {
   let raw = string.repeat("9", 1000)
   assert parse.float(raw, NotAFloat)
