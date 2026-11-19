@@ -502,6 +502,15 @@ surface that would push dataprep from "small primitives" toward
 "kitchen sink." Keeping the scope tight is what lets the
 combinators stay composable.
 
+## Testing
+
+| Technique | Bug class caught here |
+|---|---|
+| Examples and unit tests | [Wrong results at documented edge cases, drifted recipes](doc/testing.md#examples-and-unit-tests) |
+| Laws | [Accumulation and short-circuit mixed up, wrong error order](doc/testing.md#laws) |
+| Generated properties | [Broken identity, associativity, idempotence and round trips](doc/testing.md#generated-properties) |
+| Mutation testing | [Assertions that miss a changed operator or branch](doc/testing.md#mutation-testing) |
+
 ## Development
 
 This project uses [mise](https://mise.jdx.dev/) to manage Gleam and Erlang versions, and [just](https://just.systems/) as a task runner.
