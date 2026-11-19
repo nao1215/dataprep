@@ -33,7 +33,7 @@ fn validate_name(raw: String) -> Validated(String, FormError) {
     prep.sequence([prep.trim(), prep.lowercase(), prep.collapse_space()])
   let check =
     rules.not_blank(Empty)
-    |> validator.guard(rules.length_between(2, 50, TooShort(2)))
+    |> validator.and_then(rules.length_between(2, 50, TooShort(2)))
     |> validator.label("name", Field)
 
   raw |> clean |> check
@@ -43,7 +43,7 @@ fn validate_email(raw: String) -> Validated(String, FormError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
   let check =
     rules.not_blank(Empty)
-    |> validator.guard(
+    |> validator.and_then(
       validator.predicate(fn(s) { string.contains(s, "@") }, NoAtSign),
     )
     |> validator.label("email", Field)
@@ -54,7 +54,7 @@ fn validate_email(raw: String) -> Validated(String, FormError) {
 fn validate_password(raw: String) -> Validated(String, FormError) {
   let check =
     rules.not_blank(Empty)
-    |> validator.guard(rules.length_between(8, 128, TooShort(8)))
+    |> validator.and_then(rules.length_between(8, 128, TooShort(8)))
     |> validator.label("password", Field)
 
   check(raw)
@@ -88,7 +88,7 @@ pub fn validate_signup(
 
 Key patterns used:
 - `prep.sequence` for multi-step normalization
-- `validator.guard` to skip length checks on empty strings
+- `validator.and_then` to skip length checks on empty strings
 - `validator.both` for independent checks on the same field
 - `validator.label` to tag errors with field names
 - `validated.map3` to combine three fields with error accumulation

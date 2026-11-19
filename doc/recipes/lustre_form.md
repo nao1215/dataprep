@@ -80,7 +80,7 @@ fn validate_display_name(raw: String) -> Validated(String, FieldError) {
     prep.sequence([prep.trim(), prep.collapse_space()])
   let check =
     rules.not_blank(Required)
-    |> validator.guard(rules.length_between(2, 50, TooShort(2)))
+    |> validator.and_then(rules.length_between(2, 50, TooShort(2)))
 
   raw |> clean |> check
 }
@@ -89,7 +89,7 @@ fn validate_email(raw: String) -> Validated(String, FieldError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
   let check =
     rules.not_blank(Required)
-    |> validator.guard(
+    |> validator.and_then(
       validator.predicate(fn(s) { string.contains(s, "@") }, NoAtSign),
     )
 
@@ -277,7 +277,7 @@ the validator code does not change, only when it runs.
 
 - `prep.sequence` / `prep.trim` / `prep.lowercase` for canonicalization
   before validation
-- `validator.guard` so length checks don't fire on empty inputs (the
+- `validator.and_then` so length checks don't fire on empty inputs (the
   user already gets a `Required` error)
 - `validated.map3` to accumulate every field error in one go, so the
   view can render them all at once

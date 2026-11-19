@@ -130,24 +130,24 @@ pub fn law_alt_recovers_on_second_success_test() -> Nil {
   })
 }
 
-// Law: `guard` short-circuits when the prerequisite fails.
+// Law: `and_then` short-circuits when the prerequisite fails.
 //   pre(x) = Invalid(e) -> main is never called, result = Invalid(e).
-pub fn law_guard_short_circuits_on_pre_failure_test() -> Nil {
+pub fn law_and_then_short_circuits_on_pre_failure_test() -> Nil {
   let failing_pre = validator.predicate(fn(_: Int) { False }, E1)
   let combined =
     failing_pre
     |> validator.and_then(pre: _, main: fn(_) {
-      // nolint: avoid_panic -- verifies guard short-circuits on pre failure
-      panic as "guard must not evaluate main when pre fails"
+      // nolint: avoid_panic -- verifies and_then short-circuits on pre failure
+      panic as "and_then must not evaluate main when pre fails"
     })
   assert combined(0) == Invalid(non_empty_list.single(E1))
 }
 
-// Law: `guard` does NOT accumulate errors across pre and main.
+// Law: `and_then` does NOT accumulate errors across pre and main.
 //   When pre fails, only pre's errors surface, even if main would also
-//   fail on the same input. This is what distinguishes guard from
+//   fail on the same input. This is what distinguishes and_then from
 //   both / all.
-pub fn law_guard_does_not_accumulate_test() -> Nil {
+pub fn law_and_then_does_not_accumulate_test() -> Nil {
   let pre = validator.predicate(fn(_: Int) { False }, E1)
   let main = validator.predicate(fn(_: Int) { False }, E2)
   // E2 must NOT appear: main is never called.
@@ -155,8 +155,8 @@ pub fn law_guard_does_not_accumulate_test() -> Nil {
     == Invalid(non_empty_list.single(E1))
 }
 
-// Law: `guard` runs main when pre succeeds and forwards main's verdict.
-pub fn law_guard_runs_main_on_pre_success_test() -> Nil {
+// Law: `and_then` runs main when pre succeeds and forwards main's verdict.
+pub fn law_and_then_runs_main_on_pre_success_test() -> Nil {
   let pre = validator.predicate(fn(_: Int) { True }, E1)
 
   let main_pass = validator.predicate(fn(_: Int) { True }, E2)

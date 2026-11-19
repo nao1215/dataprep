@@ -70,7 +70,7 @@ fn validate_name(raw: String) -> Validated(String, ApiError) {
     prep.sequence([prep.trim(), prep.collapse_space()])
   let check =
     rules.not_blank(Required)
-    |> validator.guard(rules.length_between(2, 80, TooShort(2)))
+    |> validator.and_then(rules.length_between(2, 80, TooShort(2)))
     |> validator.label("name", Field)
 
   raw |> clean |> check
@@ -80,7 +80,7 @@ fn validate_email(raw: String) -> Validated(String, ApiError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
   let check =
     rules.not_blank(Required)
-    |> validator.guard(
+    |> validator.and_then(
       validator.predicate(fn(s) { string.contains(s, "@") }, NoAtSign),
     )
     |> validator.label("email", Field)
@@ -195,7 +195,7 @@ validate every value while accumulating.
   before validation
 - `parse.int` instead of the `int.parse |> result.map_error` chain — keeps
   the validation pipeline reading top-to-bottom
-- `validator.guard` so length checks don't fire on empty inputs (the
+- `validator.and_then` so length checks don't fire on empty inputs (the
   user already gets a `Required` error)
 - `validator.label` with a `Field` wrapper so every error carries the
   field name the API consumer needs

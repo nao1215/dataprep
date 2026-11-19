@@ -2,7 +2,7 @@
 ////
 //// Reach for this module when the operation **may reject**: rules
 //// that produce typed errors when the input doesn't satisfy them.
-//// Compose with `both` (accumulate) / `guard` (short-circuit) /
+//// Compose with `both` (accumulate) / `and_then` (short-circuit) /
 //// `label` (attach field name) / `all` / `alt`.
 ////
 //// For total transformations (\"trim\", \"lowercase\", \"replace\")
@@ -179,19 +179,6 @@ pub fn and_then(
   }
 }
 
-/// Deprecated alias for `and_then/2`. The name collides with
-/// `bool.guard` from gleam_stdlib (which is the "shortcut on
-/// condition" idiom), so first-time readers expect the opposite
-/// branching. `and_then/2` matches the `Result` / `Option` idiom
-/// callers already know from stdlib and removes the friction.
-@deprecated("Use `validator.and_then` instead. `guard` collides with `bool.guard` in stdlib, which has the opposite branching intuition.")
-pub fn guard(
-  pre pre: Validator(a, e),
-  main main: Validator(a, e),
-) -> Validator(a, e) {
-  and_then(pre: pre, main: main)
-}
-
 /// Transform the error type of a validator.
 pub fn map_error(v: Validator(a, e1), f: fn(e1) -> e2) -> Validator(a, e2) {
   fn(a) {
@@ -227,7 +214,7 @@ pub fn label(
 /// Returns Valid with the unchanged list on success.
 ///
 /// Issue #21: returns a `Validator(List(a), e)` so it composes
-/// directly with `all`, `both`, `alt`, and `guard` over the same
+/// directly with `all`, `both`, `alt`, and `and_then` over the same
 /// parent list — e.g. `validator.all([length_check, validator.each(item_v)])`
 /// validates "this list as a whole" AND "each item" without an
 /// adapter. The Validator invariant (input value preserved on
@@ -246,7 +233,7 @@ pub fn each(v: Validator(a, e)) -> Validator(List(a), e) {
 /// result back in Some.
 ///
 /// Issue #21: returns a `Validator(Option(a), e)` so it composes
-/// with `all`, `both`, `alt`, and `guard` over the same optional
+/// with `all`, `both`, `alt`, and `and_then` over the same optional
 /// parent value (e.g. enforce "if present, satisfies X" alongside
 /// other Optional-level rules).
 pub fn optional(v: Validator(a, e)) -> Validator(option.Option(a), e) {

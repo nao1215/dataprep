@@ -59,7 +59,7 @@ fn validate_title(raw: String) -> Validated(String, ApiError) {
   let clean = prep.trim()
   let check =
     rules.not_blank(Required)
-    |> validator.guard(rules.length_between(3, 200, TooShort(3)))
+    |> validator.and_then(rules.length_between(3, 200, TooShort(3)))
     |> validator.label("title", Field)
 
   raw |> clean |> check
@@ -69,7 +69,7 @@ fn validate_slug(raw: String) -> Validated(String, ApiError) {
   let clean = prep.trim() |> prep.then(prep.lowercase())
   let check =
     rules.not_empty(Required)
-    |> validator.guard(
+    |> validator.and_then(
       validator.predicate(is_slug, InvalidSlug)
       |> validator.alt(validator.predicate(is_uuid_like, InvalidUuid))
       |> validator.map_error(fn(_) { InvalidIdFormat }),
@@ -93,7 +93,7 @@ fn validate_tags(tags: List(String)) -> Validated(List(String), ApiError) {
   let assert Ok(tag_re) = regexp.from_string("^[a-z0-9-]+$")
   let check_tag =
     rules.not_empty(Required)
-    |> validator.guard(rules.matches(tag_re, InvalidTag))
+    |> validator.and_then(rules.matches(tag_re, InvalidTag))
   validator.each(check_tag)(tags)
   |> validated.map_error(fn(e) { Field("tags", e) })
 }
@@ -104,7 +104,7 @@ fn validate_subtitle(
 ) -> Validated(Option(String), ApiError) {
   let check =
     rules.not_blank(Required)
-    |> validator.guard(rules.length_between(3, 100, TooShort(3)))
+    |> validator.and_then(rules.length_between(3, 100, TooShort(3)))
   validator.optional(check)(raw)
   |> validated.map_error(fn(e) { Field("subtitle", e) })
 }
