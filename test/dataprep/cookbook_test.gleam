@@ -1,5 +1,5 @@
-//// Verifies that the recipes documented in README's "Building your own
-//// parser" section compile and behave as advertised. Each recipe is a
+//// Verifies that the recipes in `doc/recipes/custom_parsers.md`
+//// compile and behave as advertised. Each recipe is a
 //// composition of `prep` / `rules` / `validator` / `parse` primitives —
 //// no new dataprep functionality is introduced here.
 

@@ -4,7 +4,7 @@
 
 ## Examples and unit tests
 
-`test/dataprep/<module>_test.gleam` checks each module with fixed inputs and expected outputs, including the documented edge cases of `parse` (overflowing exponents and integer literals, signs, strict grammar). `cookbook_test.gleam` runs the recipes of the README section "Building your own parser", and `integration_pipeline_test.gleam` runs the Prep then Validator pipeline of `doc/architecture.md`.
+`test/dataprep/<module>_test.gleam` checks each module with fixed inputs and expected outputs, including the documented edge cases of `parse` (overflowing exponents and integer literals, signs, strict grammar). `cookbook_test.gleam` runs the recipes of `doc/recipes/custom_parsers.md`, and `integration_pipeline_test.gleam` runs the Prep then Validator pipeline of `doc/architecture.md`.
 
 ## Laws
 

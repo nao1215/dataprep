@@ -10,18 +10,9 @@
 [![License](https://img.shields.io/github/license/nao1215/dataprep)](./LICENSE)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/nao1215/dataprep/badge)](https://scorecard.dev/viewer/?uri=github.com/nao1215/dataprep)
 
-
 ![dataprep_logo](https://raw.githubusercontent.com/nao1215/dataprep/main/doc/img/dataprep-logo-small.png)
 
-Composable, type-driven preprocessing and validation combinator library for Gleam.
-
-dataprep is a combinator toolkit, not a rule catalog.
-
-- Built-in and user-defined rules are identical in power.
-- No domain-specific rules (email, URL, UUID). Write your own or use a dedicated package.
-- No schema, no DSL, no reflection.
-- Prep transforms. Validator checks. They do not mix.
-- Errors are your types, not ours.
+Composable, type-driven preprocessing and validation combinators for Gleam. Prep functions transform, validators check, and the two never mix. Errors are your own types, and your own rules have the same power as the built-in ones. There is no schema, DSL or reflection.
 
 ## Requirements
 
@@ -29,13 +20,7 @@ dataprep is a combinator toolkit, not a rule catalog.
 - Erlang/OTP 27 or later (when targeting Erlang)
 - Node.js 18 or later (when targeting JavaScript)
 
-## Supported targets
-
-- Erlang (BEAM) — for server-side use (e.g. wisp, mist)
-- JavaScript — for client-side use (e.g. Lustre form validation in the
-  browser). The package contains zero FFI and zero target-specific code,
-  so the same `Validator(a, e)` can be shared between client and server
-  code.
+The package has no FFI and no target-specific code, so one `Validator(a, e)` can run on the server (wisp, mist) and in the browser (Lustre forms).
 
 ## Install
 
@@ -75,30 +60,26 @@ pub fn validate_user(name: String, age: Int) -> Validated(User, Err) {
 // validate_user("", -1)           -> Invalid (errors: NameEmpty, AgeTooYoung)
 ```
 
-> **Note on composing rules:** Each `rules.*` function returns a
-> *validator* (`fn(a) -> Validated(a, e)`), not a transformed value.
-> You cannot pipe one rule into another directly — use `validator.both`
-> to run checks in parallel (accumulating errors) or `validator.and_then`
-> to short-circuit (skip later checks if an earlier one fails):
->
-> ```gleam
-> import dataprep/rules
-> import dataprep/validator
->
-> // ✗ Won't compile — piping a validator fn into another rule
-> let check = rules.not_empty(Empty) |> rules.min_length(3, TooShort)
->
-> // ✓ Correct — combine validators explicitly
-> let check =
->   rules.not_empty(Empty)
->   |> validator.and_then(rules.min_length(3, TooShort))
-> ```
+Each `rules.*` function returns a validator (`fn(a) -> Validated(a, e)`), not a transformed value, so one rule cannot be piped into another. Combine them with `validator.both` to run both checks and collect every error, or with `validator.and_then` to skip later checks once one fails:
+
+```gleam
+import dataprep/rules
+import dataprep/validator
+
+// ✗ Won't compile — piping a validator fn into another rule
+let check = rules.not_empty(Empty) |> rules.min_length(3, TooShort)
+
+// ✓ Correct — combine validators explicitly
+let check =
+  rules.not_empty(Empty)
+  |> validator.and_then(rules.min_length(3, TooShort))
+```
 
 ## Examples
 
 ### Field validation with structured error context
 
-Attach field names to errors so callers can identify which field failed.
+`validator.label` attaches the field name to each error.
 
 ```gleam
 import dataprep/prep
@@ -135,7 +116,7 @@ pub fn validate_username(raw: String) -> Validated(String, FormError) {
 //   -> Valid("alice")
 ```
 
-`Invalid` wraps a `NonEmptyList(e)` (opaque), not a `List(e)`, so you cannot pattern-match the errors with list-literal syntax. To surface the errors, drain the `NonEmptyList` with `non_empty_list.head/1` (the first error — useful for fail-fast UIs) or `non_empty_list.to_list/1` (every error — useful for form-level summaries):
+`Invalid` holds an opaque `NonEmptyList(e)`, so list-literal patterns do not work on it. Use `non_empty_list.head/1` for the first error or `non_empty_list.to_list/1` for all of them:
 
 ```gleam
 import dataprep/non_empty_list
@@ -148,8 +129,7 @@ let all = non_empty_list.to_list(nel)
 
 ### Parse then validate
 
-Use `validated.and_then` to bridge type-changing parsing with
-same-type validation. Parsing short-circuits; validation accumulates.
+`validated.and_then` connects a parser that changes the type to a validator on the parsed value. Parsing stops at the first error; validation collects them all.
 
 ```gleam
 import dataprep/parse
@@ -177,101 +157,15 @@ pub fn validate_age(raw: String) -> Validated(Int, AgeError) {
 // validate_age("25")  -> Valid(25)
 ```
 
-### Nested error labeling with map3
-
-Combine multiple fields into a domain type. All errors from all
-fields are accumulated with their field names.
-
-```gleam
-import dataprep/prep
-import dataprep/rules
-import dataprep/validated.{type Validated}
-import dataprep/validator
-
-pub type SignupForm {
-  SignupForm(name: String, email: String, age: Int)
-}
-
-pub type SignupError {
-  Field(name: String, detail: Detail)
-}
-
-pub type Detail {
-  Empty
-  TooShort(min: Int)
-  OutOfRange(min: Int, max: Int)
-}
-
-fn validate_name(raw: String) -> Validated(String, SignupError) {
-  let clean = prep.trim() |> prep.then(prep.lowercase())
-  let check =
-    rules.not_empty(Empty)
-    |> validator.and_then(rules.min_length(2, TooShort(2)))
-    |> validator.label("name", Field)
-  raw |> clean |> check
-}
-
-fn validate_email(raw: String) -> Validated(String, SignupError) {
-  let clean = prep.trim() |> prep.then(prep.lowercase())
-  let check =
-    rules.not_empty(Empty)
-    |> validator.label("email", Field)
-  raw |> clean |> check
-}
-
-fn validate_age(age: Int) -> Validated(Int, SignupError) {
-  let check =
-    rules.min_int(0, OutOfRange(0, 150))
-    |> validator.both(rules.max_int(150, OutOfRange(0, 150)))
-    |> validator.label("age", Field)
-  check(age)
-}
-
-pub fn validate_signup(
-  name: String,
-  email: String,
-  age: Int,
-) -> Validated(SignupForm, SignupError) {
-  validated.map3(
-    SignupForm,
-    validate_name(name),
-    validate_email(email),
-    validate_age(age),
-  )
-}
-
-// validate_signup("", "", 200)
-//   -> Invalid (errors:
-//        Field("name", Empty),
-//        Field("email", Empty),
-//        Field("age", OutOfRange(0, 150)),
-//      )
-```
-
 ### Pattern matching with `rules.matches` / `matches_string`
 
-`matches` and `matches_string` use `regexp.check` semantics — they
-pass as long as the pattern hits **anywhere** in the input. A
-pattern like `[0-9]+` will accept `"abc123def"` because the digit
-run matches a substring. For the validation case (\"the **whole**
-string must look like an email / slug / number\"), use the
-`matches_fully` / `matches_fully_string` siblings, which compare
-the matched span against the entire input.
+`matches` and `matches_string` pass when the pattern hits anywhere in the input, as `regexp.check` does, so `[0-9]+` accepts `"abc123def"`. To require the whole string to match, use `matches_fully` / `matches_fully_string`.
 
-There are three intended ways to construct a regex-driven validator:
+There are three ways to build a regex validator:
 
-- **Pre-compiled `Regexp`** — pass a `regexp.Regexp` to `matches` /
-  `matches_fully`. Pattern errors surface as a `regexp.from_string`
-  `Result` at the call site, before the validator is built.
-- **Literal convenience** — `matches_string` / `matches_fully_string`.
-  The helper compiles internally and panics on a malformed literal,
-  which is a programmer error there is no useful recovery from. Use
-  this only when the pattern is hard-coded at the call site.
-- **Checked dynamic pattern** — `matches_string_checked` /
-  `matches_fully_string_checked` return `Result(Validator, RegexRuleError)`.
-  Use this for config-driven or admin-supplied patterns where a
-  malformed regex is a runtime condition that should be handled
-  rather than crash the process.
+- Pass a compiled `regexp.Regexp` to `matches` / `matches_fully`. A bad pattern shows up as the `Result` of `regexp.from_string`.
+- Pass a literal to `matches_string` / `matches_fully_string`. It panics on a malformed pattern, so use it only for patterns hard-coded at the call site.
+- For patterns from config or users, `matches_string_checked` / `matches_fully_string_checked` return `Result(Validator, RegexRuleError)`.
 
 ```gleam
 import dataprep/rules
@@ -308,7 +202,7 @@ pub fn validate_with(
 
 ### `default` vs `default_when_blank`
 
-`prep.default(fallback)` only fires on the literal empty string `""`. Whitespace-only inputs (`" "`, `"\t"`, `"\r\n"`) pass through unchanged. Use `prep.default_when_blank(fallback)` when \"blank\" should also include whitespace-only.
+`prep.default(fallback)` replaces only the empty string `""`; whitespace-only input (`" "`, `"\t"`, `"\r\n"`) passes through. `prep.default_when_blank(fallback)` also replaces whitespace-only input.
 
 ```gleam
 import dataprep/prep
@@ -331,7 +225,7 @@ normalised("  hi  ") // "hi"
 normalised("   ")    // "N/A"
 ```
 
-More examples are available in the [doc/recipes/](https://github.com/nao1215/dataprep/tree/main/doc/recipes) directory of the repository.
+More examples (signup form, API payload, Lustre form, wisp request, CSV row, query parameters) are in [doc/recipes/](https://github.com/nao1215/dataprep/tree/main/doc/recipes). [doc/recipes/custom_parsers.md](doc/recipes/custom_parsers.md) builds `positive_int`, `bounded_string`, `uuid_v4_lowercase` and `enum_of_strings_ci` parsers from the primitives.
 
 ## Modules
 
@@ -360,136 +254,9 @@ More examples are available in the [doc/recipes/](https://github.com/nao1215/dat
 | Collection | `validator.each` | Accumulate all | Apply a validator to every list element |
 | Collection | `validator.optional` | (none if None) | Skip validation for absent values |
 
-## Scope policy
+## Scope
 
-dataprep is a **combinator toolkit**, not a rule catalog. The library
-deliberately ships only the building blocks needed to construct
-typed, error-accumulating validators:
-
-- infallible string transforms (`prep`),
-- generic checks (`validator`, `rules`),
-- applicative error accumulation (`validated`, `non_empty_list`),
-- `String` to `Int` / `Float` parsers (`parse`).
-
-Domain-specific parsers (`email`, `url`, `uuid`, `iso_datetime`,
-`ipv4`, ...) are intentionally **not in scope**. The recommended
-path is to compose the primitives above into the parser you need,
-or to depend on a domain-specific package alongside dataprep.
-
-See "Building your own parser" below for the recipes.
-
-## Building your own parser
-
-The recipes below cover the common shapes a caller actually wants.
-Each recipe uses only the public API and is verified by the tests in
-`test/dataprep/cookbook_test.gleam`.
-
-The recipes share one error type so they can be combined inside the
-same form-validation flow:
-
-```gleam
-pub type Err {
-  NotAnInteger(raw: String)
-  NotPositive
-  WrongLength(min: Int, max: Int, got: Int)
-  NotUuid(raw: String)
-  NotAllowed(raw: String)
-}
-```
-
-### Recipe 1: `positive_int`
-
-Parse to `Int`, then enforce `> 0`. Uses `validated.and_then` to
-short-circuit when the parse itself fails.
-
-```gleam
-import dataprep/parse
-import dataprep/validated.{type Validated}
-import dataprep/validator
-
-fn positive_int(raw: String) -> Validated(Int, Err) {
-  use n <- validated.and_then(parse.int(raw, NotAnInteger))
-  validator.predicate(fn(x) { x > 0 }, NotPositive)(n)
-}
-```
-
-### Recipe 2: `bounded_string`
-
-Trim, then enforce length is in `[min, max]`.
-
-```gleam
-import dataprep/prep
-import dataprep/rules
-import dataprep/validated.{type Validated}
-import gleam/string
-
-fn bounded_string(
-  min: Int,
-  max: Int,
-) -> fn(String) -> Validated(String, Err) {
-  fn(raw: String) {
-    let trimmed = prep.run(prep: prep.trim(), value: raw)
-    rules.length_between(
-      minimum: min,
-      maximum: max,
-      error: WrongLength(min, max, string.length(trimmed)),
-    )(trimmed)
-  }
-}
-```
-
-### Recipe 3: `uuid_v4_lowercase`
-
-Trim, lowercase, then regex match. Demonstrates `prep.then` for
-chained infallible normalisation before validation.
-
-```gleam
-import dataprep/prep
-import dataprep/rules
-import dataprep/validated.{type Validated}
-
-fn uuid_v4_lowercase(raw: String) -> Validated(String, Err) {
-  let normalized =
-    prep.run(
-      prep: prep.then(first: prep.trim(), next: prep.lowercase()),
-      value: raw,
-    )
-  rules.matches_fully_string(
-    pattern: "[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}",
-    error: NotUuid(raw),
-  )(normalized)
-}
-```
-
-### Recipe 4: `enum_of_strings_ci`
-
-Case-insensitive match against a fixed allow-list. Returns a
-parameterised validator so callers can vary the allowed set.
-
-```gleam
-import dataprep/prep
-import dataprep/rules
-import dataprep/validated.{type Validated}
-
-fn enum_of_strings_ci(
-  allowed: List(String),
-) -> fn(String) -> Validated(String, Err) {
-  fn(raw: String) {
-    let normalized = prep.run(prep: prep.lowercase(), value: raw)
-    rules.one_of(allowed: allowed, error: NotAllowed(raw))(normalized)
-  }
-}
-```
-
-The composition pattern is the same in every case: `prep.run` to
-normalise the raw input, then a `rules` or `validator` combinator
-to check the normalised value, then optionally `validated.and_then`
-to chain a follow-up step that depends on a successful prior step.
-
-## Out of scope, by design
-
-The following are intentionally not provided by dataprep, even
-though some of them appear in adjacent libraries in other languages:
+dataprep ships building blocks only: string transforms (`prep`), generic checks (`validator`, `rules`), error accumulation (`validated`, `non_empty_list`) and `String` to `Int` / `Float` parsers (`parse`). It does not provide:
 
 - `email`, `url`, `uri` parsing (use a URI- or email-specific package)
 - `iso_datetime` / time arithmetic (use a `gleam_time`-shaped package)
@@ -497,10 +264,7 @@ though some of them appear in adjacent libraries in other languages:
 - JSON shape validation (use a JSON-schema package)
 - HTML / XML sanitisation (use a sanitiser package)
 
-These have implementation-defining standards or substantial spec
-surface that would push dataprep from "small primitives" toward
-"kitchen sink." Keeping the scope tight is what lets the
-combinators stay composable.
+These have large specifications of their own. Compose the primitives into the parser you need, or add a domain package next to dataprep.
 
 ## Testing
 
