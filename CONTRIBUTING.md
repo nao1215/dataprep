@@ -48,20 +48,18 @@ just ci
 
 This project follows these standards:
 
-1. **Follow the [Gleam language guide](https://gleam.run/)**
-2. **Keep the public API surface small** -- use `pub opaque type` where appropriate
-3. **Pure functions first** -- no actors or OTP in this library
-4. **Keep functions as small as possible**
-5. **Add doc comments to all public functions and types**
-6. **Respect the two-phase design** -- Prep transforms, Validator checks, they do not mix
+1. Follow the [Gleam conventions](https://gleam.run/documentation/conventions-patterns-anti-patterns/).
+2. Keep the public API small. Everything public lives in the single `dataprep` module; helpers stay private.
+3. Write pure functions. The library has no processes and no FFI.
+4. Give every public function a doc comment with its behaviour, failure conditions and an example.
+5. A validator returns the value it was given unchanged; transformations belong in the caller's code or the standard library.
 
 ### Writing Tests
 
-Tests are organized by module, mirroring the source structure.
+Tests live under `test/` and call the public API.
 
-1. **Test pure functions first**, then combinators
-2. **Short-circuit behavior must be verified** with `panic` sentinels
-3. **Boundary conditions matter** -- test empty strings, whitespace, zero, negative values
+1. Check short-circuit behaviour with `panic` sentinels.
+2. Test boundaries: empty strings, whitespace, zero, negative values and long lists on both targets.
 
 ```bash
 just test     # run all tests
@@ -70,14 +68,11 @@ just check    # format check, typecheck, build, test
 
 ### Design Boundaries
 
-The following must not be added to this library:
+The following do not belong in this library:
 
 - Domain-specific rules (email, URL, UUID, phone number)
-- Parsing / decoding (String -> Int, JSON decoding)
-- Schema abstraction or string-based DSLs
-- Prep-Validator fusion (this would break the Validator invariant)
-
-See `doc/reference/DESIGN.md` section 10 for the full rationale.
+- Decoding of dynamic data such as JSON; use `gleam/dynamic/decode`
+- Schema abstractions or string-based DSLs
 
 ## Using AI Assistants (LLMs)
 
