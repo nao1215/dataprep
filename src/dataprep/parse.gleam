@@ -57,7 +57,7 @@ pub fn float(raw: String, on_error: fn(String) -> e) -> Validated(Float, e) {
 ///
 /// Accepts: optional leading `-`, then digits (`"42"`) or
 /// digits-dot-digits (`"3.14"`), optionally followed by a scientific
-/// suffix (`[eE]-?\d+`, e.g. `"1.5e-2"`, `"5E3"`). Anything else —
+/// suffix (`[eE][+-]?\d+`, e.g. `"1.5e-2"`, `"5E3"`). Anything else —
 /// commas, spaces, trailing letters, leading dots, multiple dots —
 /// is rejected via `on_error`.
 ///
@@ -152,9 +152,9 @@ fn parse_lenient_float(raw: String) -> Result(Float, Nil) {
   case float.parse(raw) {
     Ok(value) -> finite(value)
     Error(Nil) ->
-      case int.parse(raw) {
-        Ok(_) -> parse_finite(raw <> ".0")
-        Error(Nil) -> parse_scientific(raw)
+      case is_integer_literal(raw) {
+        True -> parse_finite(raw <> ".0")
+        False -> parse_scientific(raw)
       }
   }
 }
@@ -163,11 +163,21 @@ fn parse_scientific(raw: String) -> Result(Float, Nil) {
   case string.split_once(string.lowercase(raw), on: "e") {
     Error(Nil) -> Error(Nil)
     Ok(#(mantissa, exponent)) ->
-      case int.parse(mantissa) {
-        Ok(_) -> parse_finite(mantissa <> ".0e" <> exponent)
-        Error(Nil) -> Error(Nil)
+      case is_integer_literal(mantissa) {
+        True -> parse_finite(mantissa <> ".0e" <> exponent)
+        False -> Error(Nil)
       }
   }
+}
+
+// A sign followed by ASCII digits. Checked by scanning instead of
+// `int.parse`, which would build a bignum for a huge digit string.
+fn is_integer_literal(raw: String) -> Bool {
+  let digits = case raw {
+    "-" <> rest | "+" <> rest -> rest
+    _ -> raw
+  }
+  skip_digits(digits, seen: False) == Ok("")
 }
 
 fn parse_finite(raw: String) -> Result(Float, Nil) {
@@ -179,5 +189,10 @@ fn finite(value: Float) -> Result(Float, Nil) {
     when: float.absolute_value(value) >. max_finite_float,
     return: Error(Nil),
   )
-  Ok(value)
+  // Erlang keeps the sign of `-0.0`, which is not equal to `0.0` on
+  // OTP 27 and later; report every zero as `0.0`.
+  case value == 0.0 || value == -0.0 {
+    True -> Ok(0.0)
+    False -> Ok(value)
+  }
 }

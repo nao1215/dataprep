@@ -406,3 +406,18 @@ pub fn float_strict_rejects_incomplete_shapes_test() -> Nil {
       == Invalid(non_empty_list.single(NotAFloat(raw)))
   })
 }
+
+pub fn float_reports_negative_zero_as_zero_test() -> Nil {
+  ["-0", "-0.0", "-0e5", "-0.0e-3"]
+  |> list.each(fn(raw) {
+    assert parse.float(raw, NotAFloat) == parse.float("0", NotAFloat)
+    assert parse.float_strict(raw, NotAFloat)
+      == parse.float_strict("0", NotAFloat)
+  })
+}
+
+pub fn float_rejects_a_huge_digit_string_test() -> Nil {
+  let raw = "1" <> string.repeat("0", 1_000_000)
+  assert parse.float(raw, NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat(raw)))
+}
