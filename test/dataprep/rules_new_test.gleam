@@ -1,17 +1,14 @@
-import dataprep/non_empty_list
-import dataprep/rules
-import dataprep/validated.{Invalid, Valid}
-import dataprep/validator
+import dataprep
 import gleam/list
 import gleam/regexp
+import gleam/result
+import non_empty_list
 
 type Err {
   IsBlank
   BadFormat
-  BadLength
   TooSmallFloat
   TooBigFloat
-  Negative
 }
 
 fn compile_regexp(pattern: String) -> regexp.Regexp {
@@ -20,9 +17,13 @@ fn compile_regexp(pattern: String) -> regexp.Regexp {
   compiled
 }
 
+fn full_match(pattern: String) -> dataprep.Validator(String, Err) {
+  unwrap_checked(dataprep.full_match(pattern: pattern, error: BadFormat))
+}
+
 fn unwrap_checked(
-  result: Result(validator.Validator(String, Err), rules.RegexRuleError),
-) -> validator.Validator(String, Err) {
+  result: Result(dataprep.Validator(String, Err), regexp.CompileError),
+) -> dataprep.Validator(String, Err) {
   // nolint: assert_ok_pattern -- test patterns are fixed and known-valid
   let assert Ok(check) = result
   check
@@ -31,86 +32,59 @@ fn unwrap_checked(
 // --- not_blank ---
 
 pub fn not_blank_pass_test() -> Nil {
-  assert rules.not_blank(IsBlank)("hello") == Valid("hello")
+  assert dataprep.not_blank(IsBlank)("hello") == Ok("hello")
 }
 
 pub fn not_blank_fail_empty_test() -> Nil {
-  assert rules.not_blank(IsBlank)("") == Invalid(non_empty_list.single(IsBlank))
+  assert dataprep.not_blank(IsBlank)("")
+    == Error(non_empty_list.single(IsBlank))
 }
 
 pub fn not_blank_fail_whitespace_test() -> Nil {
-  assert rules.not_blank(IsBlank)("   ")
-    == Invalid(non_empty_list.single(IsBlank))
+  assert dataprep.not_blank(IsBlank)("   ")
+    == Error(non_empty_list.single(IsBlank))
 }
 
 pub fn not_blank_fail_tabs_newlines_test() -> Nil {
-  assert case rules.not_blank(IsBlank)("\t\n  ") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert result.is_error(dataprep.not_blank(IsBlank)("\t\n  "))
 }
 
 pub fn not_blank_pass_with_content_test() -> Nil {
-  assert rules.not_blank(IsBlank)("  hello  ") == Valid("  hello  ")
+  assert dataprep.not_blank(IsBlank)("  hello  ") == Ok("  hello  ")
 }
 
 // --- matches ---
 
 pub fn matches_pass_test() -> Nil {
   let pattern = compile_regexp("^[a-z0-9]+$")
-  assert rules.matches(pattern: pattern, error: BadFormat)("abc123")
-    == Valid("abc123")
+  assert dataprep.matches(pattern: pattern, error: BadFormat)("abc123")
+    == Ok("abc123")
 }
 
 pub fn matches_fail_test() -> Nil {
   let pattern = compile_regexp("^[a-z]+$")
-  assert rules.matches(pattern: pattern, error: BadFormat)("abc123")
-    == Invalid(non_empty_list.single(BadFormat))
+  assert dataprep.matches(pattern: pattern, error: BadFormat)("abc123")
+    == Error(non_empty_list.single(BadFormat))
 }
 
 pub fn matches_empty_string_test() -> Nil {
   let pattern = compile_regexp("^.+$")
-  assert case rules.matches(pattern: pattern, error: BadFormat)("") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert result.is_error(dataprep.matches(pattern: pattern, error: BadFormat)(
+    "",
+  ))
 }
 
 pub fn matches_with_guard_test() -> Nil {
   let pattern = compile_regexp("^[a-z]+$")
   let validator_under_test =
-    rules.not_empty(IsBlank)
-    |> validator.and_then(
-      pre: _,
-      main: rules.matches(pattern: pattern, error: BadFormat),
+    dataprep.not_empty(IsBlank)
+    |> dataprep.and_then(
+      first: _,
+      then: dataprep.matches(pattern: pattern, error: BadFormat),
     )
-  assert validator_under_test("") == Invalid(non_empty_list.single(IsBlank))
-  assert validator_under_test("ABC")
-    == Invalid(non_empty_list.single(BadFormat))
-  assert validator_under_test("abc") == Valid("abc")
-}
-
-// --- matches_string ---
-
-pub fn matches_string_pass_test() -> Nil {
-  assert rules.matches_string(pattern: "^[a-z0-9]+$", error: BadFormat)(
-      "abc123",
-    )
-    == Valid("abc123")
-}
-
-pub fn matches_string_fail_test() -> Nil {
-  assert rules.matches_string(pattern: "^[a-z]+$", error: BadFormat)("abc123")
-    == Invalid(non_empty_list.single(BadFormat))
-}
-
-pub fn matches_string_validator_is_reusable_test() -> Nil {
-  // The returned validator can be applied repeatedly. The test
-  // observes reuse, not compile-call counts (the helper compiles at
-  // construction by contract, not by what this test inspects).
-  let check = rules.matches_string(pattern: "^[a-z]+$", error: BadFormat)
-  assert check("abc") == Valid("abc")
-  assert check("ABC") == Invalid(non_empty_list.single(BadFormat))
+  assert validator_under_test("") == Error(non_empty_list.single(IsBlank))
+  assert validator_under_test("ABC") == Error(non_empty_list.single(BadFormat))
+  assert validator_under_test("abc") == Ok("abc")
 }
 
 // --- unanchored matches ---
@@ -121,326 +95,150 @@ pub fn matches_string_validator_is_reusable_test() -> Nil {
 
 pub fn matches_unanchored_pattern_accepts_substring_hit_test() -> Nil {
   let pattern = compile_regexp("[0-9]+")
-  assert rules.matches(pattern: pattern, error: BadFormat)("abc123def")
-    == Valid("abc123def")
+  assert dataprep.matches(pattern: pattern, error: BadFormat)("abc123def")
+    == Ok("abc123def")
 }
 
-pub fn matches_string_unanchored_pattern_accepts_substring_hit_test() -> Nil {
-  assert rules.matches_string(pattern: "[0-9]+", error: BadFormat)("abc123def")
-    == Valid("abc123def")
+// --- full_match ---
+
+pub fn full_match_full_match_passes_test() -> Nil {
+  assert full_match("[0-9]+")("123") == Ok("123")
 }
 
-// --- matches_fully_string: full-match-semantics scenarios ---
-// These previously exercised the removed `matches_fully(pattern:
-// Regexp, ...)` against compiled Regexps. After #95 the only public
-// "full match" entry point is `matches_fully_string`, which compiles
-// the pattern source itself and anchors as `^(?:...)$` — the same
-// behavioural scenarios live here against that API.
-
-pub fn matches_fully_full_match_passes_test() -> Nil {
-  assert rules.matches_fully_string(pattern: "[0-9]+", error: BadFormat)("123")
-    == Valid("123")
+pub fn full_match_no_match_at_all_is_rejected_test() -> Nil {
+  assert full_match("[0-9]+")("abc") == Error(non_empty_list.single(BadFormat))
 }
 
-pub fn matches_fully_no_match_at_all_is_rejected_test() -> Nil {
-  assert rules.matches_fully_string(pattern: "[0-9]+", error: BadFormat)("abc")
-    == Invalid(non_empty_list.single(BadFormat))
-}
-
-pub fn matches_fully_empty_input_with_star_pattern_test() -> Nil {
+pub fn full_match_empty_input_with_star_pattern_test() -> Nil {
   // `.*` matches the empty string, and the empty match equals the
   // empty input — full-match semantics.
-  assert rules.matches_fully_string(pattern: ".*", error: BadFormat)("")
-    == Valid("")
+  assert full_match(".*")("") == Ok("")
 }
 
-pub fn matches_fully_empty_input_with_plus_pattern_test() -> Nil {
+pub fn full_match_empty_input_with_plus_pattern_test() -> Nil {
   // `.+` requires at least one character; the empty input has no
   // match at all and is rejected.
-  assert rules.matches_fully_string(pattern: ".+", error: BadFormat)("")
-    == Invalid(non_empty_list.single(BadFormat))
+  assert full_match(".+")("") == Error(non_empty_list.single(BadFormat))
 }
 
-// --- matches_fully_string ---
-
-pub fn matches_fully_string_pass_test() -> Nil {
-  assert rules.matches_fully_string(pattern: "[a-z0-9-]+", error: BadFormat)(
-      "ok-1",
-    )
-    == Valid("ok-1")
+pub fn full_match_pass_test() -> Nil {
+  assert full_match("[a-z0-9-]+")("ok-1") == Ok("ok-1")
 }
 
-pub fn matches_fully_string_substring_hit_is_rejected_test() -> Nil {
+pub fn full_match_substring_hit_is_rejected_test() -> Nil {
   // The headline #7 case: literal pattern + substring match must be
   // rejected by the _fully variant.
-  assert rules.matches_fully_string(pattern: "[0-9]+", error: BadFormat)(
-      "abc123def",
-    )
-    == Invalid(non_empty_list.single(BadFormat))
+  assert full_match("[0-9]+")("abc123def")
+    == Error(non_empty_list.single(BadFormat))
 }
 
-pub fn matches_fully_string_top_level_alternation_test() -> Nil {
+pub fn full_match_top_level_alternation_test() -> Nil {
   // Regression for #47: under leftmost-first alternation the engine
   // would otherwise pick the shorter `a` and reject `"ab"` even
-  // though `ab` is one of the alternatives. `matches_fully_string`
+  // though `ab` is one of the alternatives. `full_match_string`
   // anchors the source pattern as `^(?:a|ab)$` internally, which
   // restores Python `re.fullmatch` semantics.
-  let check = rules.matches_fully_string(pattern: "a|ab", error: BadFormat)
-  assert check("a") == Valid("a")
-  assert check("ab") == Valid("ab")
-  assert check("abc") == Invalid(non_empty_list.single(BadFormat))
+  let check = full_match("a|ab")
+  assert check("a") == Ok("a")
+  assert check("ab") == Ok("ab")
+  assert check("abc") == Error(non_empty_list.single(BadFormat))
 }
 
-pub fn matches_fully_string_trailing_newline_is_rejected_test() -> Nil {
+pub fn full_match_trailing_newline_is_rejected_test() -> Nil {
   // Pins cross-target consistency: Erlang's `re` treats `$` as
   // matching before a final newline by default, JavaScript's
   // `RegExp` does not. The predicate checks scan-match content
   // against the input length, so both runtimes reject a trailing
   // newline that the pattern did not opt into. (#47 follow-up.)
-  let check = rules.matches_fully_string(pattern: "foo", error: BadFormat)
-  assert check("foo") == Valid("foo")
-  assert check("foo\n") == Invalid(non_empty_list.single(BadFormat))
+  let check = full_match("foo")
+  assert check("foo") == Ok("foo")
+  assert check("foo\n") == Error(non_empty_list.single(BadFormat))
 }
 
-pub fn matches_fully_string_alternation_realistic_patterns_test() -> Nil {
+pub fn full_match_alternation_realistic_patterns_test() -> Nil {
   // Real-world allowlists from #47: each branch must accept any
   // alternative spelling without depending on branch order.
-  let scheme =
-    rules.matches_fully_string(pattern: "http|https", error: BadFormat)
-  assert scheme("http") == Valid("http")
-  assert scheme("https") == Valid("https")
-  assert scheme("ftp") == Invalid(non_empty_list.single(BadFormat))
+  let scheme = full_match("http|https")
+  assert scheme("http") == Ok("http")
+  assert scheme("https") == Ok("https")
+  assert scheme("ftp") == Error(non_empty_list.single(BadFormat))
 
-  let yesno =
-    rules.matches_fully_string(pattern: "yes|y|true|t", error: BadFormat)
-  assert yesno("yes") == Valid("yes")
-  assert yesno("y") == Valid("y")
-  assert yesno("true") == Valid("true")
-  assert yesno("t") == Valid("t")
-  assert yesno("maybe") == Invalid(non_empty_list.single(BadFormat))
+  let yesno = full_match("yes|y|true|t")
+  assert yesno("yes") == Ok("yes")
+  assert yesno("y") == Ok("y")
+  assert yesno("true") == Ok("true")
+  assert yesno("t") == Ok("t")
+  assert yesno("maybe") == Error(non_empty_list.single(BadFormat))
 }
 
-// --- matches_string_checked ---
-
-pub fn matches_string_checked_ok_pass_test() -> Nil {
-  let check =
-    unwrap_checked(rules.matches_string_checked(
-      pattern: "^[a-z0-9]+$",
-      error: BadFormat,
-    ))
-  assert check("abc123") == Valid("abc123")
-}
-
-pub fn matches_string_checked_ok_fail_test() -> Nil {
-  let check =
-    unwrap_checked(rules.matches_string_checked(
-      pattern: "^[a-z]+$",
-      error: BadFormat,
-    ))
-  assert check("abc123") == Invalid(non_empty_list.single(BadFormat))
-}
-
-pub fn matches_string_checked_invalid_pattern_returns_error_test() -> Nil {
-  // Unclosed character class — would panic with `matches_string`.
-  assert case rules.matches_string_checked(pattern: "[", error: BadFormat) {
-    Error(rules.InvalidPattern(..)) -> True
+pub fn full_match_invalid_pattern_returns_error_test() -> Nil {
+  assert case dataprep.full_match(pattern: "(unclosed", error: BadFormat) {
+    Error(regexp.CompileError(..)) -> True
     Ok(_) -> False
-  }
-}
-
-pub fn matches_string_checked_uses_substring_semantics_test() -> Nil {
-  // Mirrors `matches`/`matches_string`: substring hit accepted.
-  let check =
-    unwrap_checked(rules.matches_string_checked(
-      pattern: "[0-9]+",
-      error: BadFormat,
-    ))
-  assert check("abc123def") == Valid("abc123def")
-}
-
-// --- matches_fully_string_checked ---
-
-pub fn matches_fully_string_checked_ok_pass_test() -> Nil {
-  let check =
-    unwrap_checked(rules.matches_fully_string_checked(
-      pattern: "[a-z0-9-]+",
-      error: BadFormat,
-    ))
-  assert check("ok-1") == Valid("ok-1")
-}
-
-pub fn matches_fully_string_checked_substring_hit_rejected_test() -> Nil {
-  let check =
-    unwrap_checked(rules.matches_fully_string_checked(
-      pattern: "[0-9]+",
-      error: BadFormat,
-    ))
-  assert check("abc123def") == Invalid(non_empty_list.single(BadFormat))
-}
-
-pub fn matches_fully_string_checked_invalid_pattern_returns_error_test() -> Nil {
-  assert case
-    rules.matches_fully_string_checked(pattern: "(unclosed", error: BadFormat)
-  {
-    Error(rules.InvalidPattern(..)) -> True
-    Ok(_) -> False
-  }
-}
-
-pub fn matches_fully_string_checked_top_level_alternation_test() -> Nil {
-  // Sister regression for #47 on the checked variant: anchored
-  // compilation must apply on the success path too.
-  let check =
-    unwrap_checked(rules.matches_fully_string_checked(
-      pattern: "a|ab",
-      error: BadFormat,
-    ))
-  assert check("a") == Valid("a")
-  assert check("ab") == Valid("ab")
-  assert check("abc") == Invalid(non_empty_list.single(BadFormat))
-}
-
-pub fn matches_fully_string_checked_trailing_newline_is_rejected_test() -> Nil {
-  // Sister regression for the trailing-newline cross-target
-  // consistency check on the panicking variant.
-  let check =
-    unwrap_checked(rules.matches_fully_string_checked(
-      pattern: "foo",
-      error: BadFormat,
-    ))
-  assert check("foo") == Valid("foo")
-  assert check("foo\n") == Invalid(non_empty_list.single(BadFormat))
-}
-
-// --- length_between ---
-
-pub fn length_between_pass_test() -> Nil {
-  assert rules.length_between(minimum: 2, maximum: 5, error: BadLength)("abc")
-    == Valid("abc")
-}
-
-pub fn length_between_exact_min_test() -> Nil {
-  assert rules.length_between(minimum: 2, maximum: 5, error: BadLength)("ab")
-    == Valid("ab")
-}
-
-pub fn length_between_exact_max_test() -> Nil {
-  assert rules.length_between(minimum: 2, maximum: 5, error: BadLength)("abcde")
-    == Valid("abcde")
-}
-
-pub fn length_between_fail_short_test() -> Nil {
-  assert case
-    rules.length_between(minimum: 2, maximum: 5, error: BadLength)("a")
-  {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-}
-
-pub fn length_between_fail_long_test() -> Nil {
-  assert case
-    rules.length_between(minimum: 2, maximum: 5, error: BadLength)("abcdef")
-  {
-    Invalid(_) -> True
-    Valid(_) -> False
   }
 }
 
 // --- min_float / max_float ---
 
 pub fn min_float_pass_test() -> Nil {
-  assert rules.min_float(minimum: 1.0, error: TooSmallFloat)(1.5) == Valid(1.5)
+  assert dataprep.min_float(minimum: 1.0, error: TooSmallFloat)(1.5) == Ok(1.5)
 }
 
 pub fn min_float_boundary_test() -> Nil {
-  assert rules.min_float(minimum: 1.0, error: TooSmallFloat)(1.0) == Valid(1.0)
+  assert dataprep.min_float(minimum: 1.0, error: TooSmallFloat)(1.0) == Ok(1.0)
 }
 
 pub fn min_float_fail_test() -> Nil {
-  assert case rules.min_float(minimum: 1.0, error: TooSmallFloat)(0.5) {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert result.is_error(dataprep.min_float(minimum: 1.0, error: TooSmallFloat)(
+    0.5,
+  ))
 }
 
 pub fn max_float_pass_test() -> Nil {
-  assert rules.max_float(maximum: 10.0, error: TooBigFloat)(5.0) == Valid(5.0)
+  assert dataprep.max_float(maximum: 10.0, error: TooBigFloat)(5.0) == Ok(5.0)
 }
 
 pub fn max_float_boundary_test() -> Nil {
-  assert rules.max_float(maximum: 10.0, error: TooBigFloat)(10.0) == Valid(10.0)
+  assert dataprep.max_float(maximum: 10.0, error: TooBigFloat)(10.0) == Ok(10.0)
 }
 
 pub fn max_float_fail_test() -> Nil {
-  assert case rules.max_float(maximum: 10.0, error: TooBigFloat)(10.1) {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert result.is_error(dataprep.max_float(maximum: 10.0, error: TooBigFloat)(
+    10.1,
+  ))
 }
 
 pub fn min_max_float_combined_test() -> Nil {
   let validator_under_test =
-    rules.min_float(minimum: 0.0, error: TooSmallFloat)
-    |> validator.both(
+    dataprep.min_float(minimum: 0.0, error: TooSmallFloat)
+    |> dataprep.both(
       first: _,
-      second: rules.max_float(maximum: 100.0, error: TooBigFloat),
+      second: dataprep.max_float(maximum: 100.0, error: TooBigFloat),
     )
-  assert validator_under_test(50.0) == Valid(50.0)
-  assert case validator_under_test(-0.1) {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-  assert case validator_under_test(100.1) {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert validator_under_test(50.0) == Ok(50.0)
+  assert result.is_error(validator_under_test(-0.1))
+  assert result.is_error(validator_under_test(100.1))
 }
 
-// --- non_negative_int / non_negative_float ---
-
-pub fn non_negative_int_pass_test() -> Nil {
-  assert rules.non_negative_int(Negative)(0) == Valid(0)
-  assert rules.non_negative_int(Negative)(42) == Valid(42)
-}
-
-pub fn non_negative_int_fail_test() -> Nil {
-  assert rules.non_negative_int(Negative)(-1)
-    == Invalid(non_empty_list.single(Negative))
-}
-
-pub fn non_negative_float_pass_test() -> Nil {
-  assert rules.non_negative_float(Negative)(0.0) == Valid(0.0)
-  assert rules.non_negative_float(Negative)(1.5) == Valid(1.5)
-}
-
-pub fn non_negative_float_fail_test() -> Nil {
-  assert rules.non_negative_float(Negative)(-0.1)
-    == Invalid(non_empty_list.single(Negative))
-}
-
-// --- matches_fully_string: pattern injection and the real end ---
+// --- full_match: pattern injection and the real end ---
 //
 // The pattern was spliced into `^(?:` <> pattern <> `)$`, so a pattern
 // that does not compile on its own, such as "a)|(b", closed the
 // wrapper group and was accepted. Erlang's `$` also matched before a
 // trailing newline, so "a|a\n" rejected "a\n" on Erlang only.
 
-pub fn matches_fully_string_checked_rejects_unbalanced_pattern_test() -> Nil {
-  assert case
-    rules.matches_fully_string_checked(pattern: "a)|(b", error: BadFormat)
-  {
-    Error(rules.InvalidPattern(..)) -> True
+pub fn full_match_rejects_unbalanced_pattern_test() -> Nil {
+  assert case dataprep.full_match(pattern: "a)|(b", error: BadFormat) {
+    Error(regexp.CompileError(..)) -> True
     Ok(_) -> False
   }
 }
 
-pub fn matches_fully_string_checked_reports_same_error_as_pattern_test() -> Nil {
+pub fn full_match_reports_same_error_as_pattern_test() -> Nil {
   ["ab(", "ab)", "[", "a)|(b"]
   |> list.each(fn(pattern) {
-    let fully =
-      rules.matches_fully_string_checked(pattern: pattern, error: BadFormat)
-    let plain = rules.matches_string_checked(pattern: pattern, error: BadFormat)
+    let fully = dataprep.full_match(pattern: pattern, error: BadFormat)
+    let plain = regexp.from_string(pattern)
     // nolint: assert_ok_pattern -- every pattern in the list is malformed
     let assert Error(fully_error) = fully as "pattern does not compile"
     // nolint: assert_ok_pattern -- every pattern in the list is malformed
@@ -449,31 +247,34 @@ pub fn matches_fully_string_checked_reports_same_error_as_pattern_test() -> Nil 
   })
 }
 
-pub fn matches_fully_string_accepts_alternative_ending_in_newline_test() -> Nil {
-  let check = rules.matches_fully_string(pattern: "a|a\n", error: BadFormat)
-  assert check("a\n") == Valid("a\n")
-  assert check("a") == Valid("a")
-  let checked =
-    unwrap_checked(rules.matches_fully_string_checked(
-      pattern: "a|a\n",
-      error: BadFormat,
-    ))
-  assert checked("a\n") == Valid("a\n")
+pub fn full_match_accepts_alternative_ending_in_newline_test() -> Nil {
+  let check = full_match("a|a\n")
+  assert check("a\n") == Ok("a\n")
+  assert check("a") == Ok("a")
 }
 
-pub fn matches_fully_string_rejects_trailing_newline_test() -> Nil {
-  let check = rules.matches_fully_string(pattern: "[a-z]+", error: BadFormat)
-  assert check("abc\n") == Invalid(non_empty_list.single(BadFormat))
-  assert check("abc\n\n") == Invalid(non_empty_list.single(BadFormat))
+pub fn full_match_rejects_trailing_newline_test() -> Nil {
+  let check = full_match("[a-z]+")
+  assert check("abc\n") == Error(non_empty_list.single(BadFormat))
+  assert check("abc\n\n") == Error(non_empty_list.single(BadFormat))
 }
 
-pub fn matches_fully_string_checked_rejects_pattern_left_open_at_end_test() -> Nil {
+pub fn full_match_rejects_pattern_left_open_at_end_test() -> Nil {
   // PCRE compiles "\Qa" alone but then quotes the closing anchor too;
-  // JavaScript rejects `\Q` outright. Both must return an error.
-  assert case
-    rules.matches_fully_string_checked(pattern: "\\Qa", error: BadFormat)
-  {
-    Error(rules.InvalidPattern(..)) -> True
-    Ok(_) -> False
+  // JavaScript rejects `\Q` outright. Both must return an error, and
+  // the wrapped failure must not point past the caller's pattern.
+  assert case dataprep.full_match(pattern: "\\Qa", error: BadFormat) {
+    Error(regexp.CompileError(byte_index: 0, ..)) -> True
+    Error(regexp.CompileError(..)) | Ok(_) -> False
+  }
+}
+
+pub fn full_match_rejects_leading_verb_test() -> Nil {
+  // PCRE accepts "(*UTF)" only at the very start of a pattern, so it
+  // compiles alone on Erlang but not inside the wrapper group.
+  // JavaScript rejects it outright.
+  assert case dataprep.full_match(pattern: "(*UTF)a", error: BadFormat) {
+    Error(regexp.CompileError(byte_index: 0, ..)) -> True
+    Error(regexp.CompileError(..)) | Ok(_) -> False
   }
 }

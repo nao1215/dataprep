@@ -7,14 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Breaking: the public API is now the single `dataprep` module. Errors accumulate in `Result(a, NonEmptyList(e))` from the [`non_empty_list`](https://hex.pm/packages/non_empty_list) package, a new dependency, and `Validator(a, e)` is `fn(a) -> Result(a, NonEmptyList(e))`. Packages that import `dataprep/validated` or `dataprep/non_empty_list`, such as datastream's example, need updating.
+- Breaking: functions that moved into `dataprep` with a new shape or new labels:
+  - `map2` to `map5` take the results first and the function last, labelled `with`.
+  - `and_then(first:, then:)` replaces `validator.and_then(pre:, main:)`, and `map_error(validator, with:)` and `predicate(condition, otherwise:)` gained labels.
+  - `collapse_space` and `collapse_unicode_space` take a `String` and return a `String` instead of returning a `Prep`.
+  - `validated.sequence` is now `collect`, and `parse.float_strict` is now `parse_float`, which returns `Result(Float, Nil)`.
+  - `rules.matches_fully_string_checked` is now `full_match`, which returns `gleam/regexp`'s `CompileError`. When the pattern compiles on its own but not inside the anchoring wrapper, the error's `byte_index` is 0 and its message refers to the wrapped pattern.
+
+```gleam
+// Before
+import dataprep/prep
+import dataprep/rules
+import dataprep/validated
+
+validated.map2(
+  User,
+  rules.not_empty("name is required")(prep.trim()(name)),
+  rules.min_int(minimum: 18, error: "must be an adult")(age),
+)
+
+// After
+import dataprep
+import gleam/string
+
+dataprep.map2(
+  dataprep.not_empty("name is required")(string.trim(name)),
+  dataprep.min_int(minimum: 18, error: "must be an adult")(age),
+  with: User,
+)
+```
+
+### Removed
+
+- Breaking: the modules `dataprep/prep`, `dataprep/validator`, `dataprep/validated`, `dataprep/non_empty_list`, `dataprep/rules` and `dataprep/parse`, and the type aliases in `dataprep`. Their remaining functions are in `dataprep`.
+- Breaking: functions that wrap the standard library or another dataprep function: the `Prep` helpers (`then`, `compose`, `sequence`, `identity`, `run`, `trim`, `lowercase`, `uppercase`, `default`, `default_when_blank`, `replace`, `replace_checked`), `Validated` and its `map`, `map_error`, `and_then`, `fail`, `from_result`, `from_result_map`, `to_result`, `combine2` to `combine5`, `and_map`, `traverse`, `traverse_indexed`, `also`, `required`, `label`, `non_negative_int`, `non_negative_float`, `equals`, `length_between`, `parse.int`, the lenient `parse.float`, `matches_string`, `matches_string_checked`, `matches_fully_string` and `RegexRuleError`. Use `string.trim`, `int.parse`, `result.map`, `list.map` with `collect`, and `map_error` instead.
+- The guides under `doc/` (architecture, laws and recipes), which described the old modules.
+
 ### Fixed
 
-- `parse.float` and `parse.float_strict` reject values beyond the largest finite float on both targets. Inputs such as `"2.0e308"` crashed the process on Erlang and returned `Valid(Infinity)` on JavaScript. Finite inputs with large exponents, such as `"0e999"` and `"0.1e309"`, are now accepted on both targets.
-- `parse.float` rejects inputs containing a comma on both targets. Erlang used to read `"3,5"` as `3.5`.
-- `validated.sequence`, `validated.traverse`, `validated.traverse_indexed` and `validator.each` no longer overflow the JavaScript stack on long lists. The validator is now applied from the first element to the last.
-- `non_empty_list.concat`, `non_empty_list.flat_map` and `validator.all` run in linear time.
-- `prep.collapse_space` and `prep.collapse_unicode_space` fold the same characters on both targets: the six ASCII whitespace characters, and the Unicode White_Space set. U+FEFF is not treated as whitespace.
-- `rules.matches_fully_string` and `rules.matches_fully_string_checked` reject patterns that do not compile on their own, such as `"a)|(b"`, and no longer accept a trailing newline after a match.
+- `parse.float` and `parse.float_strict` (now `parse_float`) reject values beyond the largest finite float on both targets. Inputs such as `"2.0e308"` crashed the process on Erlang and returned `Valid(Infinity)` on JavaScript. Finite inputs with large exponents, such as `"0e999"` and `"0.1e309"`, are now accepted on both targets.
+- `collect` (formerly `validated.sequence`) and `each` no longer overflow the JavaScript stack on long lists. The validator is now applied from the first element to the last.
+- `all` runs in linear time.
+- `collapse_space` and `collapse_unicode_space` fold the same characters on both targets: the six ASCII whitespace characters, and the Unicode White_Space set. U+FEFF is not treated as whitespace.
+- `full_match` (formerly `rules.matches_fully_string_checked`) rejects patterns that do not compile on their own, such as `"a)|(b"`, and no longer accepts a trailing newline after a match.
 
 ## [0.25.0] - 2026-11-19
 
