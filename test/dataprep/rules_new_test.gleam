@@ -2,6 +2,7 @@ import dataprep/non_empty_list
 import dataprep/rules
 import dataprep/validated.{Invalid, Valid}
 import dataprep/validator
+import gleam/list
 import gleam/regexp
 
 type Err {
@@ -416,4 +417,63 @@ pub fn non_negative_float_pass_test() -> Nil {
 pub fn non_negative_float_fail_test() -> Nil {
   assert rules.non_negative_float(Negative)(-0.1)
     == Invalid(non_empty_list.single(Negative))
+}
+
+// --- matches_fully_string: pattern injection and the real end ---
+//
+// The pattern was spliced into `^(?:` <> pattern <> `)$`, so a pattern
+// that does not compile on its own, such as "a)|(b", closed the
+// wrapper group and was accepted. Erlang's `$` also matched before a
+// trailing newline, so "a|a\n" rejected "a\n" on Erlang only.
+
+pub fn matches_fully_string_checked_rejects_unbalanced_pattern_test() -> Nil {
+  assert case
+    rules.matches_fully_string_checked(pattern: "a)|(b", error: BadFormat)
+  {
+    Error(rules.InvalidPattern(..)) -> True
+    Ok(_) -> False
+  }
+}
+
+pub fn matches_fully_string_checked_reports_same_error_as_pattern_test() -> Nil {
+  ["ab(", "ab)", "[", "a)|(b"]
+  |> list.each(fn(pattern) {
+    let fully =
+      rules.matches_fully_string_checked(pattern: pattern, error: BadFormat)
+    let plain = rules.matches_string_checked(pattern: pattern, error: BadFormat)
+    // nolint: assert_ok_pattern -- every pattern in the list is malformed
+    let assert Error(fully_error) = fully as "pattern does not compile"
+    // nolint: assert_ok_pattern -- every pattern in the list is malformed
+    let assert Error(plain_error) = plain as "pattern does not compile"
+    assert #(pattern, fully_error) == #(pattern, plain_error)
+  })
+}
+
+pub fn matches_fully_string_accepts_alternative_ending_in_newline_test() -> Nil {
+  let check = rules.matches_fully_string(pattern: "a|a\n", error: BadFormat)
+  assert check("a\n") == Valid("a\n")
+  assert check("a") == Valid("a")
+  let checked =
+    unwrap_checked(rules.matches_fully_string_checked(
+      pattern: "a|a\n",
+      error: BadFormat,
+    ))
+  assert checked("a\n") == Valid("a\n")
+}
+
+pub fn matches_fully_string_rejects_trailing_newline_test() -> Nil {
+  let check = rules.matches_fully_string(pattern: "[a-z]+", error: BadFormat)
+  assert check("abc\n") == Invalid(non_empty_list.single(BadFormat))
+  assert check("abc\n\n") == Invalid(non_empty_list.single(BadFormat))
+}
+
+pub fn matches_fully_string_checked_rejects_pattern_left_open_at_end_test() -> Nil {
+  // PCRE compiles "\Qa" alone but then quotes the closing anchor too;
+  // JavaScript rejects `\Q` outright. Both must return an error.
+  assert case
+    rules.matches_fully_string_checked(pattern: "\\Qa", error: BadFormat)
+  {
+    Error(rules.InvalidPattern(..)) -> True
+    Ok(_) -> False
+  }
 }
