@@ -52,3 +52,6 @@ unwrap_used = "error"
 
 [tools.glinter.ignore]
 "test/**/*.gleam" = ["unused_exports"]
+# The README examples are written as user code: positional arguments and a
+# `let assert` on a literal pattern.
+"test/readme_test.gleam" = ["unused_exports", "label_possible", "assert_ok_pattern"]
