@@ -50,10 +50,7 @@ pub fn and_then(
 
 /// Convert from Result.
 pub fn from_result(r: Result(a, e)) -> Validated(a, e) {
-  case r {
-    Ok(a) -> Valid(a)
-    Error(e) -> Invalid(non_empty_list.single(e))
-  }
+  from_result_map(r, fn(e) { e })
 }
 
 /// Convert from Result with a custom error mapper.
@@ -85,13 +82,7 @@ pub fn map2(
   va: Validated(a, e),
   vb: Validated(b, e),
 ) -> Validated(c, e) {
-  case va, vb {
-    Valid(a), Valid(b) -> Valid(f(a, b))
-    Valid(_), Invalid(eb) -> Invalid(eb)
-    Invalid(ea), Valid(_) -> Invalid(ea)
-    Invalid(ea), Invalid(eb) ->
-      Invalid(non_empty_list.append(left: ea, right: eb))
-  }
+  and_map(func: map(va, fn(a) { fn(b) { f(a, b) } }), value: vb)
 }
 
 /// Combine three Validated values, accumulating all errors.

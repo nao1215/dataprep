@@ -25,7 +25,7 @@ pub type RegexRuleError {
 ///   raw |> prep.trim() |> rules.not_empty(MyError)
 ///
 pub fn not_empty(error: e) -> Validator(String, e) {
-  validator.predicate(fn(s) { s != "" }, error)
+  validator.required(error)
 }
 
 /// Fails if the string is empty or contains only whitespace.
@@ -95,14 +95,8 @@ pub fn matches_string(
   pattern pattern: String,
   error error: e,
 ) -> Validator(String, e) {
-  case matches_string_checked(pattern:, error:) {
-    Ok(check) -> check
-    Error(InvalidPattern(reason:, ..)) -> {
-      let msg = "dataprep/rules.matches_string: invalid pattern — " <> reason
-      // nolint: avoid_panic -- malformed literal regex is a programmer error; recovery is not meaningful at this call site
-      panic as msg
-    }
-  }
+  matches_string_checked(pattern:, error:)
+  |> or_panic(in: "matches_string")
 }
 
 // `matches_fully(pattern: regexp.Regexp, error: e)` was removed in
@@ -144,11 +138,19 @@ pub fn matches_fully_string(
   pattern pattern: String,
   error error: e,
 ) -> Validator(String, e) {
-  case matches_fully_string_checked(pattern:, error:) {
+  matches_fully_string_checked(pattern:, error:)
+  |> or_panic(in: "matches_fully_string")
+}
+
+fn or_panic(
+  checked: Result(Validator(String, e), RegexRuleError),
+  in function: String,
+) -> Validator(String, e) {
+  case checked {
     Ok(check) -> check
     Error(InvalidPattern(reason:, ..)) -> {
       let msg =
-        "dataprep/rules.matches_fully_string: invalid pattern — " <> reason
+        "dataprep/rules." <> function <> ": invalid pattern — " <> reason
       // nolint: avoid_panic -- malformed literal regex is a programmer error; recovery is not meaningful at this call site
       panic as msg
     }
