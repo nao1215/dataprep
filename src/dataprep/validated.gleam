@@ -220,9 +220,7 @@ pub fn combine5(
 /// All errors from all elements are accumulated.
 /// Returns Valid([]) for an empty input list.
 pub fn sequence(vs: List(Validated(a, e))) -> Validated(List(a), e) {
-  list.fold_right(vs, Valid([]), fn(acc, v) {
-    map2(fn(head, tail) { [head, ..tail] }, v, acc)
-  })
+  traverse_loop(vs, 0, fn(v, _) { v }, [], [])
 }
 
 /// Apply a function that returns Validated to each element of a list,
@@ -234,9 +232,7 @@ pub fn traverse(
   xs: List(a),
   f: fn(a) -> Validated(b, e),
 ) -> Validated(List(b), e) {
-  list.fold_right(xs, Valid([]), fn(acc, x) {
-    map2(fn(head, tail) { [head, ..tail] }, f(x), acc)
-  })
+  traverse_loop(xs, 0, fn(x, _) { f(x) }, [], [])
 }
 
 /// Apply a function that returns Validated to each element with its
@@ -246,10 +242,31 @@ pub fn traverse_indexed(
   xs: List(a),
   f: fn(a, Int) -> Validated(b, e),
 ) -> Validated(List(b), e) {
-  xs
-  |> list.index_map(fn(x, i) { #(x, i) })
-  |> list.fold_right(Valid([]), fn(acc, pair) {
-    let #(x, i) = pair
-    map2(fn(head, tail) { [head, ..tail] }, f(x, i), acc)
-  })
+  traverse_loop(xs, 0, f, [], [])
+}
+
+// Tail-recursive so long lists do not overflow the JavaScript stack.
+// Values and error groups are collected in reverse and joined once at
+// the end, which keeps the whole walk linear.
+fn traverse_loop(
+  items: List(a),
+  index: Int,
+  f: fn(a, Int) -> Validated(b, e),
+  values: List(b),
+  failures: List(non_empty_list.NonEmptyList(e)),
+) -> Validated(List(b), e) {
+  case items {
+    [] ->
+      case non_empty_list.from_list(list.reverse(failures)) {
+        Error(Nil) -> Valid(list.reverse(values))
+        Ok(groups) -> Invalid(non_empty_list.concat(groups))
+      }
+    [item, ..rest] ->
+      case f(item, index) {
+        Valid(value) ->
+          traverse_loop(rest, index + 1, f, [value, ..values], failures)
+        Invalid(errors) ->
+          traverse_loop(rest, index + 1, f, values, [errors, ..failures])
+      }
+  }
 }

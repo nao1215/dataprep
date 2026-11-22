@@ -3,6 +3,7 @@ import dataprep/non_empty_list
 import dataprep/rules
 import dataprep/validated.{Invalid, Valid}
 import dataprep/validator
+import gleam/list
 
 type Err {
   TooShort
@@ -141,3 +142,62 @@ pub fn optional_some_invalid_test() -> Nil {
 }
 
 import gleam/option
+
+// --- large inputs (stack safety on JavaScript) ---
+//
+// sequence / traverse / traverse_indexed / each used list.fold_right,
+// which recursed once per element and overflowed the JavaScript stack
+// at about 10_000 elements.
+
+const large_size = 100_000
+
+fn indices(count: Int) -> List(Int) {
+  list.index_map(list.repeat(Nil, count), fn(_, index) { index })
+}
+
+pub fn sequence_large_list_test() -> Nil {
+  let items = list.map(indices(large_size), fn(i) { i + 1 })
+  assert validated.sequence(list.map(items, Valid)) == Valid(items)
+}
+
+pub fn traverse_large_list_test() -> Nil {
+  let items = list.map(indices(large_size), fn(i) { i + 1 })
+  assert validated.traverse(items, fn(n) { Valid(n * 2) })
+    == Valid(list.map(items, fn(n) { n * 2 }))
+}
+
+pub fn traverse_indexed_large_list_test() -> Nil {
+  let items = list.repeat("x", large_size)
+  assert validated.traverse_indexed(items, fn(_, i) { Valid(i) })
+    == Valid(indices(large_size))
+}
+
+pub fn each_large_list_test() -> Nil {
+  let items = list.repeat("long enough", large_size)
+  let check = validator.each(rules.min_length(minimum: 3, error: TooShort))
+  assert check(items) == Valid(items)
+}
+
+pub fn traverse_large_list_accumulates_every_error_in_order_test() -> Nil {
+  let items = indices(large_size)
+  // nolint: assert_ok_pattern -- every even element fails by construction
+  let assert Invalid(errors) =
+    validated.traverse_indexed(items, fn(n, i) {
+      case n % 2 {
+        0 -> Invalid(non_empty_list.single(Indexed(index: i, detail: TooShort)))
+        _ -> Valid(n)
+      }
+    })
+    as "every even element fails"
+  assert non_empty_list.to_list(errors)
+    == list.map(list.filter(items, fn(n) { n % 2 == 0 }), fn(i) {
+      Indexed(index: i, detail: TooShort)
+    })
+}
+
+pub fn sequence_large_list_of_failures_test() -> Nil {
+  let items = list.repeat(Invalid(non_empty_list.single(TooShort)), large_size)
+  // nolint: assert_ok_pattern -- every element fails by construction
+  let assert Invalid(errors) = validated.sequence(items) as "all elements fail"
+  assert non_empty_list.length(errors) == large_size
+}
