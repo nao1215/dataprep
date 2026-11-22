@@ -23,6 +23,8 @@
 //// ```
 ////
 
+import gleam/string_tree
+
 import gleam/bool
 import gleam/float
 import gleam/int
@@ -769,7 +771,7 @@ fn finite(value: Float) -> Result(Float, Nil) {
 /// ```
 ///
 pub fn collapse_space(text: String) -> String {
-  collapse_runs(text, of: ascii_whitespace)
+  collapse_runs(text, of: is_ascii_whitespace)
 }
 
 /// Replaces every run of Unicode whitespace with a single ASCII space.
@@ -786,23 +788,60 @@ pub fn collapse_space(text: String) -> String {
 /// ```
 ///
 pub fn collapse_unicode_space(text: String) -> String {
-  collapse_runs(text, of: unicode_whitespace)
+  collapse_runs(text, of: is_unicode_whitespace)
 }
 
-// The character classes list every member literally. PCRE and the JavaScript
-// engine disagree on `\v` and `\s` (U+0085, U+180E, U+FEFF), so the escapes
-// cannot be used if both targets are to agree.
-
 // Tab, line feed, vertical tab, form feed, carriage return, space.
-const ascii_whitespace = "\t\n\u{000B}\f\r "
+fn is_ascii_whitespace(codepoint: Int) -> Bool {
+  case codepoint {
+    0x09 | 0x0A | 0x0B | 0x0C | 0x0D | 0x20 -> True
+    _ -> False
+  }
+}
 
 // The Unicode White_Space property. U+FEFF is not in it.
-const unicode_whitespace =
-  "\t\n\u{000B}\f\r \u{0085}\u{00A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}"
+fn is_unicode_whitespace(codepoint: Int) -> Bool {
+  case codepoint {
+    0x85 | 0xA0 | 0x1680 | 0x2028 | 0x2029 | 0x202F | 0x205F | 0x3000 -> True
+    _ ->
+      is_ascii_whitespace(codepoint)
+      || { codepoint >= 0x2000 && codepoint <= 0x200A }
+  }
+}
 
-fn collapse_runs(text: String, of members: String) -> String {
-  // nolint: assert_ok_pattern -- both callers pass a fixed, known-valid character class
-  let assert Ok(re) = regexp.from_string("[" <> members <> "]+")
-    as "dataprep: whitespace character class must compile"
-  regexp.replace(each: re, in: text, with: " ")
+// One pass over the codepoints: characters that are not whitespace are
+// gathered into words, and each run of whitespace becomes one space.
+fn collapse_runs(text: String, of is_space: fn(Int) -> Bool) -> String {
+  let #(tree, word, _) =
+    list.fold(
+      string.to_utf_codepoints(text),
+      #(string_tree.new(), [], False),
+      fn(state, codepoint) {
+        let #(tree, word, in_run) = state
+        case is_space(string.utf_codepoint_to_int(codepoint)), in_run {
+          True, True -> #(tree, [], True)
+          True, False -> #(
+            tree |> flush_word(word) |> string_tree.append(" "),
+            [],
+            True,
+          )
+          False, _ -> #(tree, [codepoint, ..word], False)
+        }
+      },
+    )
+  tree |> flush_word(word) |> string_tree.to_string
+}
+
+fn flush_word(
+  tree: string_tree.StringTree,
+  reversed_word: List(UtfCodepoint),
+) -> string_tree.StringTree {
+  case reversed_word {
+    [] -> tree
+    _ ->
+      string_tree.append(
+        tree,
+        string.from_utf_codepoints(list.reverse(reversed_word)),
+      )
+  }
 }

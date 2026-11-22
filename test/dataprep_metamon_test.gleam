@@ -27,7 +27,16 @@ pub fn collapse_unicode_space_is_idempotent_test() -> Nil {
       of: dataprep.collapse_unicode_space,
     )
   metamon.forall_morph(
-    generator.string_ascii(range.constant(0, 16)),
+    generator.string(
+      generator.one_of([
+        generator.ascii_printable(),
+        generator.element_of([
+          "\u{0085}", "\u{00A0}", "\u{2003}", "\u{2028}", "\u{3000}", "\u{FEFF}",
+          "\t", " ",
+        ]),
+      ]),
+      range.constant(0, 16),
+    ),
     mr,
     dataprep.collapse_unicode_space,
   )
