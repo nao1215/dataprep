@@ -1,5 +1,5 @@
 name = "dataprep"
-version = "0.25.0"
+version = "0.26.0"
 description = "Composable validators for Gleam that report every error at once"
 licences = ["MIT"]
 repository = { type = "github", user = "nao1215", repo = "dataprep" }
