@@ -34,9 +34,10 @@ pub fn append(
 
 /// Flatten a NonEmptyList of NonEmptyLists into a single NonEmptyList.
 pub fn concat(lists: NonEmptyList(NonEmptyList(a))) -> NonEmptyList(a) {
-  list.fold(over: lists.rest, from: lists.first, with: fn(acc, next) {
-    append(left: acc, right: next)
-  })
+  NonEmptyList(
+    first: lists.first.first,
+    rest: list.flatten([lists.first.rest, ..list.map(lists.rest, to_list)]),
+  )
 }
 
 /// Transform every element.
