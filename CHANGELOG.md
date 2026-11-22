@@ -19,29 +19,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - `validated.sequence` is now `collect`, and `parse.float_strict` is now `parse_float`, which returns `Result(Float, Nil)`.
   - `rules.matches_fully_string_checked` is now `full_match`, which returns `gleam/regexp`'s `CompileError`. When the pattern compiles on its own but not inside the anchoring wrapper, the error's `byte_index` is 0 and its message refers to the wrapped pattern.
 
-```gleam
-// Before
-import dataprep/prep
-import dataprep/rules
-import dataprep/validated
-
-validated.map2(
-  User,
-  rules.not_empty("name is required")(prep.trim()(name)),
-  rules.min_int(minimum: 18, error: "must be an adult")(age),
-)
-
-// After
-import dataprep
-import gleam/string
-
-dataprep.map2(
-  dataprep.not_empty("name is required")(string.trim(name)),
-  dataprep.min_int(minimum: 18, error: "must be an adult")(age),
-  with: User,
-)
-```
-
 ### Removed
 
 - Breaking: the modules `dataprep/prep`, `dataprep/validator`, `dataprep/validated`, `dataprep/non_empty_list`, `dataprep/rules` and `dataprep/parse`, and the type aliases in `dataprep`. Their remaining functions are in `dataprep`.
