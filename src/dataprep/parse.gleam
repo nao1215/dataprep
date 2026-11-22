@@ -6,8 +6,6 @@ import dataprep/validated.{type Validated, Invalid, Valid}
 import gleam/bool
 import gleam/float
 import gleam/int
-import gleam/list
-import gleam/regexp
 import gleam/result
 import gleam/string
 
@@ -36,16 +34,10 @@ pub fn int(raw: String, on_error: fn(String) -> e) -> Validated(Int, e) {
 /// - scientific notation — `"1e3"`, `"1.5e-2"`, `"5E3"` are all
 ///   accepted; the exponent must itself be a valid integer.
 ///
-/// **Locale ambiguity warning.** `gleam/float.parse` is documented as
-/// lenient: it returns the parsed prefix when the input has trailing
-/// non-numeric bytes. Concretely, `parse.float("3,000", ...)` returns
-/// `Valid(3.0)` because the parse stops at the comma. This silently
-/// truncates locale-formatted thousand-separated input
-/// (`de_DE` / `fr_FR` / `ja_JP` users typing `"3,000"` mean three
-/// thousand, not three) and a 1000× wrong amount can flow through
-/// the rest of the pipeline. For amount fields, address fields, and
-/// any other input where partial-parse is a bug rather than a
-/// feature, use `float_strict/2` instead. (#67)
+/// Input containing a comma, such as `"3,000"` or `"3,5"`, is rejected
+/// on both targets. Erlang's float parser would otherwise read the
+/// comma as a decimal point. For input that must match a fixed
+/// grammar, use `float_strict/2`.
 ///
 /// Example:
 ///   parse.float(raw, fn(s) { NotAFloat(s) })
@@ -60,10 +52,8 @@ pub fn float(raw: String, on_error: fn(String) -> e) -> Validated(Float, e) {
 /// Parse a string as Float, rejecting any input the strict-float
 /// grammar does not accept end-to-end.
 ///
-/// Strict counterpart of `float/2`. The lenient `float/2` delegates
-/// to `gleam/float.parse`, which silently truncates inputs like
-/// `"3,000"` (returns `3.0`, parse stops at the comma). For form
-/// fields where partial-parse is a bug, use this variant.
+/// Strict counterpart of `float/2`, for form fields where only the
+/// grammar below is allowed.
 ///
 /// Accepts: optional leading `-`, then digits (`"42"`) or
 /// digits-dot-digits (`"3.14"`), optionally followed by a scientific
@@ -92,105 +82,102 @@ pub fn float_strict(
   }
 }
 
+// Strict grammar: `-?digits(.digits)?([eE][+-]?digits)?`, end to end.
 fn strict_float_grammar_matches(raw: String) -> Bool {
-  // nolint: assert_ok_pattern -- the strict-float regex is a fixed, known-valid literal
-  let assert Ok(strict_re) =
-    regexp.from_string("^-?(?:\\d+\\.\\d+|\\d+)(?:[eE][+-]?\\d+)?$")
-  regexp.check(with: strict_re, content: raw)
-}
-
-fn parse_lenient_float(raw: String) -> Result(Float, Nil) {
-  // Pre-check the scientific exponent so we never call the target's
-  // float parser with an exponent that would overflow IEEE 754 doubles.
-  // Erlang's `binary_to_float` plus our `math:pow` fallback raises
-  // `Badarith`; JavaScript's `parseFloat` silently returns `Infinity`.
-  // Both targets need the same rejection contract, so we guard here.
-  // Underflow (very negative exponents) is intentionally left alone —
-  // both targets round it to 0.0 without raising.
-  use <- bool.guard(
-    when: has_overflowing_scientific_exponent(raw),
-    return: Error(Nil),
-  )
-  // Plain-integer literals (no decimal point, no `e`) with more than
-  // 308 significant digits overflow IEEE 754 doubles. On Erlang
-  // `int.to_float` -> `erlang:float/1` raises `badarg`; on JavaScript
-  // `parseInt` already returns `Infinity` (Gleam's `Int` on JS is a
-  // `Number`, not a `BigInt`). Both targets need to funnel this case
-  // into `Invalid`, so we guard on the raw string before either parser
-  // sees it. (#80)
-  use <- bool.guard(
-    when: has_overflowing_plain_integer_literal(raw),
-    return: Error(Nil),
-  )
-  case float.parse(raw) {
-    Ok(x) -> Ok(x)
-    Error(Nil) ->
-      case int.parse(raw) {
-        Ok(n) ->
-          case has_overflowing_integer_magnitude(n) {
-            True -> Error(Nil)
-            False -> Ok(int.to_float(n))
-          }
-        Error(Nil) -> parse_scientific(raw)
-      }
+  let unsigned = case raw {
+    "-" <> rest -> rest
+    _ -> raw
+  }
+  case skip_digits(unsigned, seen: False) {
+    Ok(rest) -> strict_fraction_matches(rest)
+    Error(Nil) -> False
   }
 }
 
-fn has_overflowing_scientific_exponent(raw: String) -> Bool {
-  case string.split_once(string.lowercase(raw), on: "e") {
-    Error(Nil) -> False
-    Ok(#(_, exp_str)) -> {
-      // The strict-float grammar (and every mainstream float parser)
-      // accepts an explicit `+` on the exponent. Normalise it away
-      // before parsing as Int.
-      let exp_str = case string.starts_with(exp_str, "+") {
-        True -> string.drop_start(exp_str, 1)
-        False -> exp_str
-      }
-      case int.parse(exp_str) {
-        Ok(exp) -> exp > 308
+fn strict_fraction_matches(rest: String) -> Bool {
+  case rest {
+    "." <> fraction ->
+      case skip_digits(fraction, seen: False) {
+        Ok(after) -> strict_exponent_matches(after)
         Error(Nil) -> False
       }
+    _ -> strict_exponent_matches(rest)
+  }
+}
+
+fn strict_exponent_matches(rest: String) -> Bool {
+  case rest {
+    "" -> True
+    "e" <> exponent | "E" <> exponent -> {
+      let digits = case exponent {
+        "+" <> unsigned | "-" <> unsigned -> unsigned
+        _ -> exponent
+      }
+      skip_digits(digits, seen: False) == Ok("")
     }
-  }
-}
-
-fn has_overflowing_integer_magnitude(n: Int) -> Bool {
-  int.absolute_value(n)
-  |> int.to_string
-  |> string.length
-  > 308
-}
-
-fn has_overflowing_plain_integer_literal(raw: String) -> Bool {
-  let digits = case string.starts_with(raw, "-") {
-    True -> string.drop_start(raw, 1)
-    False -> raw
-  }
-  string.length(digits) > 308
-  && list.all(string.to_graphemes(digits), is_ascii_digit_grapheme)
-}
-
-fn is_ascii_digit_grapheme(g: String) -> Bool {
-  case g {
-    "0" | "1" | "2" | "3" | "4" | "5" | "6" | "7" | "8" | "9" -> True
     _ -> False
+  }
+}
+
+/// Drop leading ASCII digits. Fails when there is not at least one.
+fn skip_digits(input: String, seen seen: Bool) -> Result(String, Nil) {
+  case input {
+    "0" <> rest
+    | "1" <> rest
+    | "2" <> rest
+    | "3" <> rest
+    | "4" <> rest
+    | "5" <> rest
+    | "6" <> rest
+    | "7" <> rest
+    | "8" <> rest
+    | "9" <> rest -> skip_digits(rest, seen: True)
+    _ if seen -> Ok(input)
+    _ -> Error(Nil)
+  }
+}
+
+/// The largest finite IEEE 754 double.
+const max_finite_float = 1.7976931348623157e308
+
+// Every accepted shape is rewritten into the `digits.digits[e..]` form
+// that `float.parse` reads on both targets, so the target's own
+// correctly rounded parser does the work and nothing is multiplied
+// here. On overflow Erlang's parser fails and JavaScript's returns
+// Infinity; the magnitude check maps both to `Error(Nil)`.
+fn parse_lenient_float(raw: String) -> Result(Float, Nil) {
+  // Erlang's `binary_to_float` reads `,` as a decimal point and
+  // JavaScript does not, so commas are rejected up front.
+  use <- bool.guard(when: string.contains(raw, ","), return: Error(Nil))
+  case float.parse(raw) {
+    Ok(value) -> finite(value)
+    Error(Nil) ->
+      case int.parse(raw) {
+        Ok(_) -> parse_finite(raw <> ".0")
+        Error(Nil) -> parse_scientific(raw)
+      }
   }
 }
 
 fn parse_scientific(raw: String) -> Result(Float, Nil) {
   case string.split_once(string.lowercase(raw), on: "e") {
     Error(Nil) -> Error(Nil)
-    Ok(#(mantissa_str, exp_str)) -> assemble_scientific(mantissa_str, exp_str)
+    Ok(#(mantissa, exponent)) ->
+      case int.parse(mantissa) {
+        Ok(_) -> parse_finite(mantissa <> ".0e" <> exponent)
+        Error(Nil) -> Error(Nil)
+      }
   }
 }
 
-fn assemble_scientific(
-  mantissa_str: String,
-  exp_str: String,
-) -> Result(Float, Nil) {
-  use mantissa <- result.try(parse_lenient_float(mantissa_str))
-  use exp <- result.try(int.parse(exp_str))
-  use power <- result.map(float.power(10.0, of: int.to_float(exp)))
-  mantissa *. power
+fn parse_finite(raw: String) -> Result(Float, Nil) {
+  result.try(float.parse(raw), finite)
+}
+
+fn finite(value: Float) -> Result(Float, Nil) {
+  use <- bool.guard(
+    when: float.absolute_value(value) >. max_finite_float,
+    return: Error(Nil),
+  )
+  Ok(value)
 }

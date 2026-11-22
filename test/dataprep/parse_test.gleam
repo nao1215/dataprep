@@ -3,6 +3,7 @@ import dataprep/parse
 import dataprep/rules
 import dataprep/validated.{Invalid, Valid}
 import dataprep/validator
+import gleam/list
 import gleam/string
 
 type Err {
@@ -318,4 +319,90 @@ pub fn int_then_validate_out_of_range_test() -> Nil {
   assert parse.int("200", NotAnInteger)
     |> validated.and_then(rules.max_int(maximum: 100, error: TooBig(100)))
     == Invalid(non_empty_list.single(TooBig(100)))
+}
+
+// --- parse.float overflow decided by the result, not the exponent ---
+//
+// An exponent of 308 or less can still overflow once the mantissa is
+// above 1.0. Erlang used to raise `badarith` and JavaScript returned
+// `Valid(Infinity)`.
+
+pub fn float_rejects_mantissa_overflow_within_exponent_limit_test() -> Nil {
+  assert parse.float("2.0e308", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("2.0e308")))
+  assert parse.float("10e308", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("10e308")))
+  assert parse.float("-10e308", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("-10e308")))
+}
+
+pub fn float_strict_rejects_mantissa_overflow_within_exponent_limit_test() -> Nil {
+  assert parse.float_strict("2.0e308", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("2.0e308")))
+  assert parse.float_strict("9.9e308", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("9.9e308")))
+}
+
+pub fn float_rejects_plus_signed_long_digit_overflow_test() -> Nil {
+  let raw = "+1" <> string.repeat("0", 309)
+  assert parse.float(raw, NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat(raw)))
+}
+
+pub fn float_accepts_largest_finite_value_test() -> Nil {
+  assert parse.float("1.7976931348623157e308", NotAFloat)
+    == Valid(1.7976931348623157e308)
+  assert parse.float("17976931348623157e292", NotAFloat)
+    == Valid(1.7976931348623157e308)
+}
+
+pub fn float_accepts_zero_with_huge_exponent_test() -> Nil {
+  // The value is 0.0, which is finite, so it is not an overflow.
+  assert parse.float("0e999", NotAFloat) == Valid(0.0)
+  assert parse.float_strict("0e999", NotAFloat) == Valid(0.0)
+}
+
+pub fn float_accepts_finite_value_with_exponent_past_308_test() -> Nil {
+  assert parse.float("0.1e309", NotAFloat) == Valid(1.0e308)
+  assert parse.float_strict("0.1e309", NotAFloat) == Valid(1.0e308)
+}
+
+pub fn float_accepts_long_leading_zero_integer_test() -> Nil {
+  let raw = string.repeat("0", 400) <> "5"
+  assert parse.float(raw, NotAFloat) == Valid(5.0)
+}
+
+pub fn float_underflows_far_negative_exponent_to_zero_test() -> Nil {
+  // An exponent too large for a float used to crash Erlang in
+  // `int.to_float`.
+  let raw = "1e-" <> string.repeat("9", 400)
+  assert parse.float(raw, NotAFloat) == Valid(0.0)
+}
+
+pub fn float_rejects_huge_positive_exponent_test() -> Nil {
+  let raw = "1e" <> string.repeat("9", 400)
+  assert parse.float(raw, NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat(raw)))
+}
+
+// --- parse.float rejects commas on both targets ---
+//
+// Erlang's `binary_to_float` reads `,` as a decimal point, so the
+// lenient parser accepted "3,5" on Erlang only.
+
+pub fn float_rejects_decimal_comma_test() -> Nil {
+  assert parse.float("3,5", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("3,5")))
+  assert parse.float("3,000", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("3,000")))
+  assert parse.float("1,0e5", NotAFloat)
+    == Invalid(non_empty_list.single(NotAFloat("1,0e5")))
+}
+
+pub fn float_strict_rejects_incomplete_shapes_test() -> Nil {
+  ["-", "+1", "--1", "1e", "1e+", "1.e5", "1.5e-", "1.5e1.5", "1٥"]
+  |> list.each(fn(raw) {
+    assert parse.float_strict(raw, NotAFloat)
+      == Invalid(non_empty_list.single(NotAFloat(raw)))
+  })
 }
