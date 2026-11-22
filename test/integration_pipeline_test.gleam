@@ -1,38 +1,22 @@
-//// Integration tests for the canonical Prep → Validator pipeline
-//// documented in `doc/architecture.md`. These exist so the recipe
-//// snippet on the architecture page cannot drift out of sync with
-//// the actual API: every helper used in the recipe is exercised
-//// here, and CI catches the moment a signature shifts.
+//// Integration tests for the normalise-then-validate pipeline: plain
+//// string functions clean the input, then validators check it.
 
-import dataprep/non_empty_list
-import dataprep/parse
-import dataprep/prep
-import dataprep/rules
-import dataprep/validated.{Invalid, Valid}
-import dataprep/validator
+import dataprep
+import gleam/int
+import gleam/result
+import gleam/string
+import non_empty_list.{type NonEmptyList}
 
-// ---------------------------------------------------------------------------
-// Decision-table sanity checks: each module's primary shape.
-// ---------------------------------------------------------------------------
-
-pub fn prep_is_total_test() -> Nil {
-  // Prep always returns the same type; never produces errors.
-  let prepper = prep.lowercase()
-  assert prepper("HELLO") == "hello"
-  assert prepper("") == ""
-}
-
-pub fn validator_returns_validated_test() -> Nil {
-  // Validator returns Validated(a, e); on success the value is
-  // returned unchanged.
-  let check = rules.not_empty(EmptyName)
-  assert check("hi") == Valid("hi")
-  assert check("") == Invalid(non_empty_list.single(EmptyName))
+pub fn validator_returns_result_test() -> Nil {
+  // A validator returns Result(a, NonEmptyList(e)); on success the value
+  // is returned unchanged.
+  let check = dataprep.not_empty(EmptyName)
+  assert check("hi") == Ok("hi")
+  assert check("") == Error(non_empty_list.single(EmptyName))
 }
 
 // ---------------------------------------------------------------------------
-// Pipeline recipe: prep then validator.
-// Mirrors the username example in doc/architecture.md exactly.
+// Pipeline recipe: normalise, then validate.
 // ---------------------------------------------------------------------------
 
 pub type Detail {
@@ -45,52 +29,50 @@ pub type FormError {
   Field(name: String, detail: Detail)
 }
 
-fn validate_username(raw: String) -> validated.Validated(String, FormError) {
-  let clean =
-    prep.trim()
-    |> prep.then(first: _, next: prep.lowercase())
-    |> prep.then(first: _, next: prep.collapse_space())
-
+fn validate_username(raw: String) -> Result(String, NonEmptyList(FormError)) {
   let check =
-    rules.not_empty(Empty)
-    |> validator.and_then(
-      rules.min_length(3, TooShort(3))
-      |> validator.both(rules.max_length(20, TooLong(20))),
+    dataprep.not_empty(Empty)
+    |> dataprep.and_then(
+      dataprep.min_length(3, TooShort(3))
+      |> dataprep.both(dataprep.max_length(20, TooLong(20))),
     )
-    |> validator.label("username", Field)
+    |> dataprep.map_error(with: fn(detail) { Field("username", detail) })
 
-  raw |> clean |> check
+  raw
+  |> string.trim
+  |> string.lowercase
+  |> dataprep.collapse_space
+  |> check
 }
 
 pub fn pipeline_recipe_happy_path_test() -> Nil {
-  // Prep normalises whitespace + case; the cleaned value passes the
+  // Normalising fixes whitespace and case; the cleaned value passes the
   // validator chain.
-  assert validate_username("  AlICE  ") == Valid("alice")
+  assert validate_username("  AlICE  ") == Ok("alice")
 }
 
 pub fn pipeline_recipe_too_short_test() -> Nil {
   // The cleaned value is "al" (length 2). min_length(3) fails;
-  // validator.label wraps the detail with "username".
+  // map_error wraps the detail with "username".
   assert validate_username("Al")
-    == Invalid(non_empty_list.single(Field("username", TooShort(3))))
+    == Error(non_empty_list.single(Field("username", TooShort(3))))
 }
 
 pub fn pipeline_recipe_empty_short_circuits_test() -> Nil {
-  // not_empty fires first; validator.and_then skips the inner length
-  // checks. Only the Empty detail is reported.
+  // not_empty fires first; and_then skips the inner length checks. Only
+  // the Empty detail is reported.
   assert validate_username("")
-    == Invalid(non_empty_list.single(Field("username", Empty)))
+    == Error(non_empty_list.single(Field("username", Empty)))
 }
 
 pub fn pipeline_recipe_whitespace_only_routes_to_empty_test() -> Nil {
   // After trim, "  " becomes "" — empty triggers not_empty.
   assert validate_username("   ")
-    == Invalid(non_empty_list.single(Field("username", Empty)))
+    == Error(non_empty_list.single(Field("username", Empty)))
 }
 
 // ---------------------------------------------------------------------------
 // Type-changing step: parse then validate.
-// Mirrors the `validate_age` example in doc/architecture.md.
 // ---------------------------------------------------------------------------
 
 pub type AgeError {
@@ -99,32 +81,61 @@ pub type AgeError {
   TooOld(max: Int)
 }
 
-fn validate_age(raw: String) -> validated.Validated(Int, AgeError) {
+fn validate_age(raw: String) -> Result(Int, NonEmptyList(AgeError)) {
   let check_range =
-    rules.min_int(0, TooYoung(0))
-    |> validator.both(rules.max_int(150, TooOld(150)))
+    dataprep.min_int(0, TooYoung(0))
+    |> dataprep.both(dataprep.max_int(150, TooOld(150)))
 
-  parse.int(raw, NotAnInteger)
-  |> validated.and_then(check_range)
+  int.parse(raw)
+  |> result.replace_error(non_empty_list.single(NotAnInteger(raw)))
+  |> result.try(check_range)
 }
 
 pub fn parse_then_validate_happy_path_test() -> Nil {
-  assert validate_age("25") == Valid(25)
+  assert validate_age("25") == Ok(25)
 }
 
 pub fn parse_then_validate_parse_failure_short_circuits_test() -> Nil {
   // parse failure short-circuits — the range checks never run.
   assert validate_age("abc")
-    == Invalid(non_empty_list.single(NotAnInteger("abc")))
+    == Error(non_empty_list.single(NotAnInteger("abc")))
 }
 
 pub fn parse_then_validate_range_failure_test() -> Nil {
-  assert validate_age("200") == Invalid(non_empty_list.single(TooOld(150)))
+  assert validate_age("200") == Error(non_empty_list.single(TooOld(150)))
 }
 
 // ---------------------------------------------------------------------------
-// Decision-table check: a sentinel error type used only by
-// `validator_returns_validated_test`.
+// Form recipe: validate two fields on their own and combine them.
+// ---------------------------------------------------------------------------
+
+pub type User {
+  User(name: String, age: Int)
+}
+
+fn validate_user(
+  name: String,
+  age: String,
+) -> Result(User, NonEmptyList(String)) {
+  let name = dataprep.not_empty("name is required")(string.trim(name))
+  let age =
+    int.parse(age)
+    |> result.replace_error(non_empty_list.single("age is not a number"))
+    |> result.try(dataprep.min_int(18, "must be an adult"))
+  dataprep.map2(name, age, with: User)
+}
+
+pub fn form_recipe_valid_test() -> Nil {
+  assert validate_user(" Ann ", "30") == Ok(User("Ann", 30))
+}
+
+pub fn form_recipe_accumulates_both_fields_test() -> Nil {
+  assert validate_user(" ", "x")
+    == Error(non_empty_list.new("name is required", ["age is not a number"]))
+}
+
+// ---------------------------------------------------------------------------
+// Sentinel error type used only by `validator_returns_result_test`.
 // ---------------------------------------------------------------------------
 
 pub type DecisionTableError {

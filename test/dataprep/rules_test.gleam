@@ -1,8 +1,7 @@
-import dataprep/non_empty_list
-import dataprep/prep
-import dataprep/rules
-import dataprep/validated.{Invalid, Valid}
-import dataprep/validator
+import dataprep
+import gleam/result
+import gleam/string
+import non_empty_list
 
 type Err {
   IsEmpty
@@ -11,263 +10,177 @@ type Err {
   TooSmall(min: Int)
   TooBig(max: Int)
   NotAllowed
-  NotEqual
 }
 
 // --- not_empty ---
 
 pub fn not_empty_pass_test() -> Nil {
-  assert rules.not_empty(IsEmpty)("hello") == Valid("hello")
+  assert dataprep.not_empty(IsEmpty)("hello") == Ok("hello")
 }
 
 pub fn not_empty_fail_test() -> Nil {
-  assert rules.not_empty(IsEmpty)("") == Invalid(non_empty_list.single(IsEmpty))
+  assert dataprep.not_empty(IsEmpty)("")
+    == Error(non_empty_list.single(IsEmpty))
 }
 
 pub fn not_empty_whitespace_passes_test() -> Nil {
-  assert rules.not_empty(IsEmpty)("   ") == Valid("   ")
+  assert dataprep.not_empty(IsEmpty)("   ") == Ok("   ")
 }
 
 pub fn not_empty_with_trim_rejects_whitespace_test() -> Nil {
-  let clean = prep.trim()
-  assert rules.not_empty(IsEmpty)(clean("   "))
-    == Invalid(non_empty_list.single(IsEmpty))
+  assert dataprep.not_empty(IsEmpty)(string.trim("   "))
+    == Error(non_empty_list.single(IsEmpty))
 }
 
 pub fn not_empty_single_char_test() -> Nil {
-  assert rules.not_empty(IsEmpty)(" ") == Valid(" ")
+  assert dataprep.not_empty(IsEmpty)(" ") == Ok(" ")
 }
 
 // --- min_length ---
 
 pub fn min_length_pass_test() -> Nil {
-  assert rules.min_length(minimum: 3, error: TooShort(3))("abc") == Valid("abc")
+  assert dataprep.min_length(minimum: 3, error: TooShort(3))("abc") == Ok("abc")
 }
 
 pub fn min_length_fail_test() -> Nil {
-  assert rules.min_length(minimum: 3, error: TooShort(3))("ab")
-    == Invalid(non_empty_list.single(TooShort(3)))
+  assert dataprep.min_length(minimum: 3, error: TooShort(3))("ab")
+    == Error(non_empty_list.single(TooShort(3)))
 }
 
 pub fn min_length_exact_boundary_test() -> Nil {
-  assert rules.min_length(minimum: 3, error: TooShort(3))("abc") == Valid("abc")
-  assert case rules.min_length(minimum: 3, error: TooShort(3))("ab") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert dataprep.min_length(minimum: 3, error: TooShort(3))("abc") == Ok("abc")
+  assert result.is_error(dataprep.min_length(minimum: 3, error: TooShort(3))(
+    "ab",
+  ))
 }
 
 pub fn min_length_zero_test() -> Nil {
-  assert rules.min_length(minimum: 0, error: TooShort(0))("") == Valid("")
+  assert dataprep.min_length(minimum: 0, error: TooShort(0))("") == Ok("")
 }
 
 pub fn min_length_empty_string_test() -> Nil {
-  assert case rules.min_length(minimum: 1, error: TooShort(1))("") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert result.is_error(dataprep.min_length(minimum: 1, error: TooShort(1))(""))
 }
 
 // --- max_length ---
 
 pub fn max_length_pass_test() -> Nil {
-  assert rules.max_length(maximum: 5, error: TooLong(5))("abc") == Valid("abc")
+  assert dataprep.max_length(maximum: 5, error: TooLong(5))("abc") == Ok("abc")
 }
 
 pub fn max_length_fail_test() -> Nil {
-  assert rules.max_length(maximum: 2, error: TooLong(2))("abc")
-    == Invalid(non_empty_list.single(TooLong(2)))
+  assert dataprep.max_length(maximum: 2, error: TooLong(2))("abc")
+    == Error(non_empty_list.single(TooLong(2)))
 }
 
 pub fn max_length_exact_boundary_test() -> Nil {
-  assert rules.max_length(maximum: 3, error: TooLong(3))("abc") == Valid("abc")
-  assert case rules.max_length(maximum: 3, error: TooLong(3))("abcd") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert dataprep.max_length(maximum: 3, error: TooLong(3))("abc") == Ok("abc")
+  assert result.is_error(dataprep.max_length(maximum: 3, error: TooLong(3))(
+    "abcd",
+  ))
 }
 
 pub fn max_length_empty_string_test() -> Nil {
-  assert rules.max_length(maximum: 0, error: TooLong(0))("") == Valid("")
+  assert dataprep.max_length(maximum: 0, error: TooLong(0))("") == Ok("")
 }
-
-// --- length_between ---
-
-pub fn length_between_pass_test() -> Nil {
-  assert rules.length_between(minimum: 3, maximum: 10, error: TooShort(3))(
-      "hello",
-    )
-    == Valid("hello")
-}
-
-pub fn length_between_below_min_test() -> Nil {
-  assert case
-    rules.length_between(minimum: 3, maximum: 10, error: TooShort(3))("ab")
-  {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-}
-
-pub fn length_between_above_max_test() -> Nil {
-  assert case
-    rules.length_between(minimum: 3, maximum: 10, error: TooLong(10))(
-      "abcdefghijk",
-    )
-  {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-}
-
-pub fn length_between_exact_boundaries_test() -> Nil {
-  let between = rules.length_between(minimum: 3, maximum: 5, error: TooShort(3))
-  assert between("abc") == Valid("abc")
-  assert between("abcde") == Valid("abcde")
-}
-
-// `rules.length_between(minimum: m, maximum: n, ...)` with `m > n`
-// now panics at construction time (#97). The previous behaviour —
-// an always-fail validator built from the empty interval — silently
-// rejected every input and hid configuration bugs at runtime, so
-// the inverted range is treated as a programmer error instead.
-// Capturing the panic from Gleam would require an FFI shim per
-// target; the panic path is exercised implicitly by leaving the
-// call out of the test suite.
 
 // --- min_int ---
 
 pub fn min_int_pass_test() -> Nil {
-  assert rules.min_int(minimum: 0, error: TooSmall(0))(10) == Valid(10)
+  assert dataprep.min_int(minimum: 0, error: TooSmall(0))(10) == Ok(10)
 }
 
 pub fn min_int_fail_test() -> Nil {
-  assert rules.min_int(minimum: 0, error: TooSmall(0))(-1)
-    == Invalid(non_empty_list.single(TooSmall(0)))
+  assert dataprep.min_int(minimum: 0, error: TooSmall(0))(-1)
+    == Error(non_empty_list.single(TooSmall(0)))
 }
 
 pub fn min_int_exact_boundary_test() -> Nil {
-  assert rules.min_int(minimum: 0, error: TooSmall(0))(0) == Valid(0)
-  assert case rules.min_int(minimum: 0, error: TooSmall(0))(-1) {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert dataprep.min_int(minimum: 0, error: TooSmall(0))(0) == Ok(0)
+  assert result.is_error(dataprep.min_int(minimum: 0, error: TooSmall(0))(-1))
 }
 
 pub fn min_int_negative_boundary_test() -> Nil {
-  assert rules.min_int(minimum: -10, error: TooSmall(-10))(-10) == Valid(-10)
-  assert case rules.min_int(minimum: -10, error: TooSmall(-10))(-11) {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert dataprep.min_int(minimum: -10, error: TooSmall(-10))(-10) == Ok(-10)
+  assert result.is_error(dataprep.min_int(minimum: -10, error: TooSmall(-10))(
+    -11,
+  ))
 }
 
 // --- max_int ---
 
 pub fn max_int_pass_test() -> Nil {
-  assert rules.max_int(maximum: 10, error: TooBig(10))(5) == Valid(5)
+  assert dataprep.max_int(maximum: 10, error: TooBig(10))(5) == Ok(5)
 }
 
 pub fn max_int_fail_test() -> Nil {
-  assert rules.max_int(maximum: 10, error: TooBig(10))(11)
-    == Invalid(non_empty_list.single(TooBig(10)))
+  assert dataprep.max_int(maximum: 10, error: TooBig(10))(11)
+    == Error(non_empty_list.single(TooBig(10)))
 }
 
 pub fn max_int_exact_boundary_test() -> Nil {
-  assert rules.max_int(maximum: 10, error: TooBig(10))(10) == Valid(10)
-  assert case rules.max_int(maximum: 10, error: TooBig(10))(11) {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert dataprep.max_int(maximum: 10, error: TooBig(10))(10) == Ok(10)
+  assert result.is_error(dataprep.max_int(maximum: 10, error: TooBig(10))(11))
 }
 
 // --- one_of ---
 
 pub fn one_of_pass_test() -> Nil {
-  assert rules.one_of(allowed: ["a", "b", "c"], error: NotAllowed)("a")
-    == Valid("a")
+  assert dataprep.one_of(allowed: ["a", "b", "c"], error: NotAllowed)("a")
+    == Ok("a")
 }
 
 pub fn one_of_fail_test() -> Nil {
-  assert rules.one_of(allowed: ["a", "b", "c"], error: NotAllowed)("d")
-    == Invalid(non_empty_list.single(NotAllowed))
+  assert dataprep.one_of(allowed: ["a", "b", "c"], error: NotAllowed)("d")
+    == Error(non_empty_list.single(NotAllowed))
 }
 
-// `rules.one_of(allowed: [], ...)` now panics at construction time
-// (#96). The previous behaviour — an always-fail validator built
-// from the empty allowlist — silently rejected every input and hid
-// configuration bugs at runtime, so the empty-list case is treated
-// as a programmer error instead. Capturing the panic from Gleam
-// would require an FFI shim per target; the panic path is exercised
-// implicitly by leaving the call out of the test suite (a future
-// regression that re-introduces the silent always-fail validator
-// would have to delete this comment first).
+// `dataprep.one_of(allowed: [], ...)` panics at construction time.
+// Capturing the panic from Gleam would require an FFI shim per
+// target, so the panic path is left out of the test suite.
 
 pub fn one_of_int_test() -> Nil {
-  assert rules.one_of(allowed: [1, 2, 3], error: NotAllowed)(1) == Valid(1)
-  assert case rules.one_of(allowed: [1, 2, 3], error: NotAllowed)(4) {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
-}
-
-// --- equals ---
-
-pub fn equals_pass_test() -> Nil {
-  assert rules.equals(expected: 42, error: NotEqual)(42) == Valid(42)
-}
-
-pub fn equals_fail_test() -> Nil {
-  assert rules.equals(expected: 42, error: NotEqual)(99)
-    == Invalid(non_empty_list.single(NotEqual))
-}
-
-pub fn equals_string_test() -> Nil {
-  assert rules.equals(expected: "yes", error: NotEqual)("yes") == Valid("yes")
-  assert case rules.equals(expected: "yes", error: NotEqual)("no") {
-    Invalid(_) -> True
-    Valid(_) -> False
-  }
+  assert dataprep.one_of(allowed: [1, 2, 3], error: NotAllowed)(1) == Ok(1)
+  assert result.is_error(dataprep.one_of(allowed: [1, 2, 3], error: NotAllowed)(
+    4,
+  ))
 }
 
 // --- rules combined with validator combinators ---
 
 pub fn min_max_length_combined_test() -> Nil {
   let validator_under_test =
-    rules.min_length(minimum: 3, error: TooShort(3))
-    |> validator.both(
+    dataprep.min_length(minimum: 3, error: TooShort(3))
+    |> dataprep.both(
       first: _,
-      second: rules.max_length(maximum: 10, error: TooLong(10)),
+      second: dataprep.max_length(maximum: 10, error: TooLong(10)),
     )
-  assert validator_under_test("hello") == Valid("hello")
-  assert validator_under_test("ab")
-    == Invalid(non_empty_list.single(TooShort(3)))
+  assert validator_under_test("hello") == Ok("hello")
+  assert validator_under_test("ab") == Error(non_empty_list.single(TooShort(3)))
   assert validator_under_test("abcdefghijk")
-    == Invalid(non_empty_list.single(TooLong(10)))
+    == Error(non_empty_list.single(TooLong(10)))
 }
 
 pub fn min_max_int_combined_test() -> Nil {
   let validator_under_test =
-    rules.min_int(minimum: 0, error: TooSmall(0))
-    |> validator.both(
+    dataprep.min_int(minimum: 0, error: TooSmall(0))
+    |> dataprep.both(
       first: _,
-      second: rules.max_int(maximum: 100, error: TooBig(100)),
+      second: dataprep.max_int(maximum: 100, error: TooBig(100)),
     )
-  assert validator_under_test(50) == Valid(50)
-  assert validator_under_test(-1) == Invalid(non_empty_list.single(TooSmall(0)))
-  assert validator_under_test(101)
-    == Invalid(non_empty_list.single(TooBig(100)))
+  assert validator_under_test(50) == Ok(50)
+  assert validator_under_test(-1) == Error(non_empty_list.single(TooSmall(0)))
+  assert validator_under_test(101) == Error(non_empty_list.single(TooBig(100)))
 }
 
 pub fn not_empty_guard_min_length_test() -> Nil {
   let validator_under_test =
-    rules.not_empty(IsEmpty)
-    |> validator.and_then(
-      pre: _,
-      main: rules.min_length(minimum: 3, error: TooShort(3)),
+    dataprep.not_empty(IsEmpty)
+    |> dataprep.and_then(
+      first: _,
+      then: dataprep.min_length(minimum: 3, error: TooShort(3)),
     )
-  assert validator_under_test("") == Invalid(non_empty_list.single(IsEmpty))
-  assert validator_under_test("ab")
-    == Invalid(non_empty_list.single(TooShort(3)))
-  assert validator_under_test("abc") == Valid("abc")
+  assert validator_under_test("") == Error(non_empty_list.single(IsEmpty))
+  assert validator_under_test("ab") == Error(non_empty_list.single(TooShort(3)))
+  assert validator_under_test("abc") == Ok("abc")
 }
