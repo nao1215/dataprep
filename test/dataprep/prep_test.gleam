@@ -1,5 +1,7 @@
 import dataprep/prep
+import gleam/list
 import gleam/result
+import gleam/string
 
 // --- identity ---
 
@@ -370,4 +372,53 @@ pub fn run_with_sequence_test() -> Nil {
   let clean =
     prep.sequence([prep.trim(), prep.lowercase(), prep.collapse_space()])
   assert prep.run(clean, "  John.  DOE.  Jr  ") == "john. doe. jr"
+}
+
+// --- collapse_space / collapse_unicode_space: exact character sets ---
+//
+// Both used PCRE classes (`\v`, `\s`) whose meaning differs from the
+// JavaScript engine, so U+0085, U+2028 and U+FEFF collapsed on one
+// target only. Each code point below must behave the same on both.
+
+const ascii_space_codepoints = [0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20]
+
+// Unicode White_Space.
+const unicode_space_codepoints = [
+  0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x20, 0x85, 0xA0, 0x1680, 0x2000, 0x2001, 0x2002,
+  0x2003, 0x2004, 0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200A, 0x2028, 0x2029,
+  0x202F, 0x205F, 0x3000,
+]
+
+// Not White_Space, though some engines treat a few of them as `\s`.
+const non_space_codepoints = [0x180E, 0x200B, 0x200C, 0x200D, 0x2060, 0xFEFF]
+
+fn doubled(codepoint: Int) -> String {
+  // nolint: assert_ok_pattern -- every test code point is a valid scalar value
+  let assert Ok(c) = string.utf_codepoint(codepoint)
+    as "test code points are valid scalar values"
+  let char = string.from_utf_codepoints([c])
+  "a" <> char <> char <> "b"
+}
+
+pub fn collapse_space_folds_exactly_ascii_whitespace_test() -> Nil {
+  let collapse = prep.collapse_space()
+  list.each(ascii_space_codepoints, fn(cp) {
+    assert #(cp, collapse(doubled(cp))) == #(cp, "a b")
+  })
+  unicode_space_codepoints
+  |> list.filter(fn(cp) { !list.contains(ascii_space_codepoints, cp) })
+  |> list.append(non_space_codepoints)
+  |> list.each(fn(cp) {
+    assert #(cp, collapse(doubled(cp))) == #(cp, doubled(cp))
+  })
+}
+
+pub fn collapse_unicode_space_folds_exactly_unicode_whitespace_test() -> Nil {
+  let collapse = prep.collapse_unicode_space()
+  list.each(unicode_space_codepoints, fn(cp) {
+    assert #(cp, collapse(doubled(cp))) == #(cp, "a b")
+  })
+  list.each(non_space_codepoints, fn(cp) {
+    assert #(cp, collapse(doubled(cp))) == #(cp, doubled(cp))
+  })
 }

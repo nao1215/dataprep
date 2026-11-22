@@ -575,3 +575,17 @@ pub fn required_composes_with_all_test() -> Nil {
   // IsEmpty surfaces.
   assert validator_under_test("") == Invalid(non_empty_list.single(IsEmpty))
 }
+
+// --- linear all ---
+//
+// all used to append each new error group onto the accumulated errors,
+// which was quadratic in the number of failing validators.
+
+pub fn all_many_failing_validators_test() -> Nil {
+  let count = 100_000
+  let failing = list.repeat(validator.predicate(fn(_) { False }, "bad"), count)
+  // nolint: assert_ok_pattern -- every validator fails by construction
+  let assert Invalid(errors) = validator.all(failing)("x")
+    as "every validator fails"
+  assert non_empty_list.length(errors) == count
+}

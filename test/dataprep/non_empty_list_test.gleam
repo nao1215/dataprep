@@ -1,5 +1,6 @@
 import dataprep/helpers/nel
 import dataprep/non_empty_list
+import gleam/list
 
 // --- single ---
 
@@ -222,4 +223,27 @@ pub fn reverse_idempotent_test() -> Nil {
     |> non_empty_list.reverse
     |> non_empty_list.to_list
     == [1, 2, 3]
+}
+
+// --- linear concat ---
+//
+// concat used to append onto the accumulated list, copying it once per
+// group: 100_000 groups took well past the test timeout.
+
+pub fn concat_many_groups_test() -> Nil {
+  let count = 100_000
+  let groups = nel.make(first: 0, rest: list.repeat(1, count - 1))
+  let joined =
+    non_empty_list.concat(non_empty_list.map(groups, non_empty_list.single))
+  assert non_empty_list.length(joined) == count
+  assert non_empty_list.head(joined) == 0
+}
+
+pub fn flat_map_many_groups_test() -> Nil {
+  let count = 50_000
+  let groups = nel.make(first: 0, rest: list.repeat(1, count - 1))
+  let joined =
+    non_empty_list.flat_map(groups, fn(n) { nel.make(first: n, rest: [n + 10]) })
+  assert non_empty_list.length(joined) == count * 2
+  assert list.take(non_empty_list.to_list(joined), 4) == [0, 10, 1, 11]
 }

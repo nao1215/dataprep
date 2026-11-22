@@ -3,7 +3,8 @@ import gleam/float
 import gleam/int
 import gleam/list
 import gleam/order
-import gleam/regexp.{Match}
+import gleam/regexp
+import gleam/result
 import gleam/string
 
 /// Why a checked regex constructor refused to build a validator.
@@ -24,7 +25,7 @@ pub type RegexRuleError {
 ///   raw |> prep.trim() |> rules.not_empty(MyError)
 ///
 pub fn not_empty(error: e) -> Validator(String, e) {
-  validator.predicate(fn(s) { s != "" }, error)
+  validator.required(error)
 }
 
 /// Fails if the string is empty or contains only whitespace.
@@ -43,7 +44,7 @@ pub fn not_blank(error: e) -> Validator(String, e) {
 /// somewhere in the input. To require the entire string to match,
 /// either anchor the pattern explicitly with `^...$`, or reach for
 /// `matches_fully_string` which enforces full-string semantics by
-/// anchoring the pattern source as `^(?:...)$` internally. The
+/// anchoring the pattern source to both ends internally. The
 /// validation use case almost always wants `matches_fully_string`;
 /// `matches` is exposed for the cases that genuinely need
 /// substring search.
@@ -94,16 +95,8 @@ pub fn matches_string(
   pattern pattern: String,
   error error: e,
 ) -> Validator(String, e) {
-  case regexp.from_string(pattern) {
-    Ok(re) -> matches(pattern: re, error: error)
-    Error(compile_error) -> {
-      let msg =
-        "dataprep/rules.matches_string: invalid pattern — "
-        <> compile_error.error
-      // nolint: avoid_panic -- malformed literal regex is a programmer error; recovery is not meaningful at this call site
-      panic as msg
-    }
-  }
+  matches_string_checked(pattern:, error:)
+  |> or_panic(in: "matches_string")
 }
 
 // `matches_fully(pattern: regexp.Regexp, error: e)` was removed in
@@ -119,8 +112,8 @@ pub fn matches_string(
 // produce the expected `re.fullmatch` behaviour. See issue #95.
 
 /// Fails if the regex does not match the entire input string.
-/// Compiles the pattern internally with explicit anchors
-/// (`^(?:pattern)$`) so the check matches Python's `re.fullmatch`
+/// Compiles the pattern on its own, then anchored to both ends of the
+/// input, so the check matches Python's `re.fullmatch`
 /// semantics even for top-level alternation — e.g. pattern `"a|ab"`
 /// against input `"ab"` is accepted because `ab` is one of the
 /// alternatives. An invalid pattern panics at construction time
@@ -130,14 +123,9 @@ pub fn matches_string(
 /// `"abc123def"` rather than accepting it on a substring hit, so
 /// the API behaves the way readers usually assume.
 ///
-/// The predicate compares `regexp.scan` match content against the
-/// input rather than relying on `regexp.check`. The latter would
-/// diverge between targets for inputs with a trailing newline
-/// (Erlang `$` matches before a final newline by default;
-/// JavaScript `$` only matches at the absolute end). Comparing
-/// match content against the input length pins the contract on
-/// both runtimes — e.g. pattern `"foo"` rejects `"foo\n"` on
-/// Erlang and JavaScript alike.
+/// The end anchor is `(?![\s\S])` rather than `$`, because Erlang's
+/// `$` also matches before a final newline. Pattern `"foo"` rejects
+/// `"foo\n"` on Erlang and JavaScript alike.
 ///
 /// Example:
 ///   import dataprep/rules
@@ -150,21 +138,19 @@ pub fn matches_fully_string(
   pattern pattern: String,
   error error: e,
 ) -> Validator(String, e) {
-  case regexp.from_string("^(?:" <> pattern <> ")$") {
-    Ok(re) ->
-      validator.predicate(
-        fn(s) {
-          case regexp.scan(re, s) {
-            [Match(content: c, ..), ..] -> c == s
-            [] -> False
-          }
-        },
-        error,
-      )
-    Error(compile_error) -> {
+  matches_fully_string_checked(pattern:, error:)
+  |> or_panic(in: "matches_fully_string")
+}
+
+fn or_panic(
+  checked: Result(Validator(String, e), RegexRuleError),
+  in function: String,
+) -> Validator(String, e) {
+  case checked {
+    Ok(check) -> check
+    Error(InvalidPattern(reason:, ..)) -> {
       let msg =
-        "dataprep/rules.matches_fully_string: invalid pattern — "
-        <> compile_error.error
+        "dataprep/rules." <> function <> ": invalid pattern — " <> reason
       // nolint: avoid_panic -- malformed literal regex is a programmer error; recovery is not meaningful at this call site
       panic as msg
     }
@@ -196,14 +182,8 @@ pub fn matches_string_checked(
   pattern pattern: String,
   error error: e,
 ) -> Result(Validator(String, e), RegexRuleError) {
-  case regexp.from_string(pattern) {
-    Ok(re) -> Ok(matches(pattern: re, error: error))
-    Error(compile_error) ->
-      Error(InvalidPattern(
-        reason: compile_error.error,
-        byte_index: compile_error.byte_index,
-      ))
-  }
+  use compiled <- result.map(compile(pattern))
+  matches(pattern: compiled, error: error)
 }
 
 /// Like `matches_fully_string`, but returns the compile failure as
@@ -213,12 +193,10 @@ pub fn matches_string_checked(
 /// than crashing.
 ///
 /// On success the validator behaves identically to
-/// `matches_fully_string`: it anchors the pattern as
-/// `^(?:pattern)$` internally and matches Python `re.fullmatch`
-/// semantics even for top-level alternation. The byte index
-/// reported on a compile failure refers to the position inside the
-/// caller-supplied pattern (the internal `^(?:` prefix is stripped
-/// off before reporting).
+/// `matches_fully_string` and matches Python `re.fullmatch`
+/// semantics even for top-level alternation. A pattern that does not
+/// compile on its own returns the same error as
+/// `matches_string_checked`.
 ///
 /// Example:
 ///   import dataprep/rules
@@ -234,30 +212,30 @@ pub fn matches_fully_string_checked(
   pattern pattern: String,
   error error: e,
 ) -> Result(Validator(String, e), RegexRuleError) {
-  let prefix = "^(?:"
-  case regexp.from_string(prefix <> pattern <> ")$") {
-    Ok(re) ->
-      Ok(validator.predicate(
-        fn(s) {
-          case regexp.scan(re, s) {
-            [Match(content: c, ..), ..] -> c == s
-            [] -> False
-          }
-        },
-        error,
-      ))
-    Error(compile_error) -> {
-      let prefix_len = string.length(prefix)
-      let adjusted_index = case compile_error.byte_index >= prefix_len {
-        True -> compile_error.byte_index - prefix_len
-        False -> compile_error.byte_index
-      }
-      Error(InvalidPattern(
-        reason: compile_error.error,
-        byte_index: adjusted_index,
-      ))
-    }
-  }
+  // The pattern is compiled on its own first, so a pattern such as
+  // "a)|(b" cannot close the wrapper group below and slip through.
+  use _ <- result.try(compile(pattern))
+  // `(?![\s\S])` holds only at the real end of the input on both
+  // targets; Erlang's `$` also matches before a trailing newline.
+  use anchored <- result.map(
+    compile("^(?:" <> pattern <> ")(?![\\s\\S])")
+    |> result.map_error(fn(anchor_error) {
+      // The pattern compiled alone but leaves something open at its
+      // end (for example PCRE's `\Q` quoting), so point there.
+      InvalidPattern(..anchor_error, byte_index: string.byte_size(pattern))
+    }),
+  )
+  validator.predicate(fn(s) { regexp.check(anchored, s) }, error)
+}
+
+fn compile(pattern: String) -> Result(regexp.Regexp, RegexRuleError) {
+  regexp.from_string(pattern)
+  |> result.map_error(fn(compile_error) {
+    InvalidPattern(
+      reason: compile_error.error,
+      byte_index: compile_error.byte_index,
+    )
+  })
 }
 
 /// Fails if the string length is less than min.

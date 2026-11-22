@@ -130,14 +130,12 @@ pub fn uppercase() -> Prep(String) {
 /// fixed, known-valid regular expression, so compilation cannot fail
 /// at runtime. The assert is intentional and safe.
 pub fn collapse_space() -> Prep(String) {
-  // nolint: assert_ok_pattern -- the bracket expression is a fixed, known-valid regex literal
-  let assert Ok(re) = regexp.from_string("[ \\t\\n\\r\\f\\v]+")
-  fn(s) { regexp.replace(each: re, in: s, with: " ") }
+  collapse_runs(of: ascii_whitespace)
 }
 
 /// Collapse consecutive Unicode whitespace into a single ASCII space.
 ///
-/// Matches `\s+` under the regex engine's full Unicode rule, so it
+/// Matches runs of the Unicode White_Space set on both targets, so it
 /// recognises NO-BREAK SPACE (U+00A0), IDEOGRAPHIC SPACE (U+3000),
 /// LINE / PARAGRAPH SEPARATOR (U+2028 / U+2029), the various EN/EM
 /// SPACEs (U+2000..U+200A), etc. Each run — even one made entirely of
@@ -146,12 +144,28 @@ pub fn collapse_space() -> Prep(String) {
 /// Reach for `collapse_space` instead when the caller wants to keep
 /// CJK / typographic whitespace intact and only fold ASCII runs.
 ///
-/// Uses `let assert` for the regex compilation. The pattern `\s+` is
-/// a fixed, known-valid regular expression, so compilation cannot
-/// fail at runtime. The assert is intentional and safe.
+/// Uses `let assert` for the regex compilation. The pattern is a
+/// fixed, known-valid regular expression, so compilation cannot fail
+/// at runtime. The assert is intentional and safe.
 pub fn collapse_unicode_space() -> Prep(String) {
-  // nolint: assert_ok_pattern -- "\\s+" is a fixed, known-valid regex literal
-  let assert Ok(re) = regexp.from_string("\\s+")
+  collapse_runs(of: unicode_whitespace)
+}
+
+// The character classes list every member literally. PCRE and the
+// JavaScript engine disagree on `\v` and `\s` (U+0085, U+180E, U+FEFF),
+// so the escapes cannot be used if both targets are to agree.
+
+// Tab, line feed, vertical tab, form feed, carriage return, space.
+const ascii_whitespace = "\t\n\u{000B}\f\r "
+
+// The Unicode White_Space property. U+FEFF is not in it.
+const unicode_whitespace =
+  "\t\n\u{000B}\f\r \u{0085}\u{00A0}\u{1680}\u{2000}-\u{200A}\u{2028}\u{2029}\u{202F}\u{205F}\u{3000}"
+
+fn collapse_runs(of members: String) -> Prep(String) {
+  // nolint: assert_ok_pattern -- both callers pass a fixed, known-valid character class
+  let assert Ok(re) = regexp.from_string("[" <> members <> "]+")
+    as "dataprep/prep: whitespace character class must compile"
   fn(s) { regexp.replace(each: re, in: s, with: " ") }
 }
 

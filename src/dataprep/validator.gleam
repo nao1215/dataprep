@@ -120,14 +120,20 @@ pub fn also(
 /// identity.
 pub fn all(validators: List(Validator(a, e))) -> Validator(a, e) {
   fn(a) {
-    list.fold(validators, Valid(a), fn(acc, v) {
-      case acc, v(a) {
-        Valid(_), result -> result
-        Invalid(e1), Valid(_) -> Invalid(e1)
-        Invalid(e1), Invalid(e2) ->
-          Invalid(non_empty_list.append(left: e1, right: e2))
-      }
-    })
+    // Error groups are collected in reverse and joined once, so the
+    // cost stays linear in the number of failing validators.
+    let #(value, failures) =
+      list.fold(validators, #(a, []), fn(acc, v) {
+        let #(value, failures) = acc
+        case v(a) {
+          Valid(checked) -> #(checked, failures)
+          Invalid(errors) -> #(value, [errors, ..failures])
+        }
+      })
+    case non_empty_list.from_list(list.reverse(failures)) {
+      Error(Nil) -> Valid(value)
+      Ok(groups) -> Invalid(non_empty_list.concat(groups))
+    }
   }
 }
 
