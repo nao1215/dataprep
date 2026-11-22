@@ -6,9 +6,6 @@
 // inputs. They are deliberately phrased so that a regression in
 // short-circuit vs accumulation semantics fails on the law itself, not
 // on a single arithmetic edge case.
-//
-// See `doc/laws.md` for the prose description of every law
-// asserted here.
 
 import dataprep
 import gleam/list
