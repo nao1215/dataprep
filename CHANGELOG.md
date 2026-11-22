@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.26.0] - 2026-11-22
+
 ### Changed
 
 - Breaking: the public API is now the single `dataprep` module. Errors accumulate in `Result(a, NonEmptyList(e))` from the [`non_empty_list`](https://hex.pm/packages/non_empty_list) package, a new dependency, and `Validator(a, e)` is `fn(a) -> Result(a, NonEmptyList(e))`. Packages that import `dataprep/validated` or `dataprep/non_empty_list`, such as datastream's example, need updating.
