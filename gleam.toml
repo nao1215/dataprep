@@ -1,6 +1,6 @@
 name = "dataprep"
 version = "0.25.0"
-description = "Composable, type-driven preprocessing and validation combinator library"
+description = "Composable validators for Gleam that report every error at once"
 licences = ["MIT"]
 repository = { type = "github", user = "nao1215", repo = "dataprep" }
 gleam = ">= 1.14.0"
