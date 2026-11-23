@@ -211,6 +211,17 @@ pub fn parse_float_accepts_largest_finite_value_test() -> Nil {
     == Ok(1.7976931348623157e308)
 }
 
+pub fn parse_float_rounds_values_just_above_the_largest_float_down_test() -> Nil {
+  // Below the midpoint between the largest float and 2^1024, a value
+  // rounds to the largest float, as Python's float() and JavaScript's
+  // Number() do. At the midpoint and above it overflows.
+  assert dataprep.parse_float("1.797693134862315807e308")
+    == Ok(1.7976931348623157e308)
+  assert dataprep.parse_float("-1.797693134862315807e308")
+    == Ok(-1.7976931348623157e308)
+  assert dataprep.parse_float("1.79769313486231581e308") == Error(Nil)
+}
+
 pub fn parse_float_accepts_zero_with_huge_exponent_test() -> Nil {
   // The value is 0.0, which is finite, so it is not an overflow.
   assert dataprep.parse_float("0e999") == Ok(0.0)

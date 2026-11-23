@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- Breaking: `one_of` takes the allowed values as a `NonEmptyList(a)` instead of a `List(a)`, so an empty allowlist is a type error instead of a panic. Replace `dataprep.one_of(["red", "green"], error)` with `dataprep.one_of(non_empty_list.new("red", ["green"]), error)`.
+- `not_blank` treats a string of Unicode whitespace (the White_Space set that `collapse_unicode_space` folds) as blank. Strings of no-break spaces or ideographic spaces (U+3000) used to pass, as `string.trim` keeps them, and strings of the direction marks U+200E and U+200F, which are not whitespace, used to be rejected.
+
+### Fixed
+
+- `full_match` accepts every pattern that compiles on its own. On Erlang, patterns that start with a verb such as `(*UTF)` or `(*CR)`, patterns that end inside a `\Q` quote, and extended-mode patterns that end in a `#` comment returned a compile error with `byte_index` 0. When the wrapped pattern still fails to compile, the error's `byte_index` points into the caller's pattern.
+
 ## [0.26.0] - 2026-11-22
 
 ### Changed

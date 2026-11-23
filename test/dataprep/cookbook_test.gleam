@@ -105,7 +105,7 @@ pub fn cookbook_uuid_v1_rejected_test() -> Nil {
 // Lowercase, then one_of allowed.
 
 fn enum_of_strings_ci(
-  allowed: List(String),
+  allowed: NonEmptyList(String),
 ) -> fn(String) -> Result(String, NonEmptyList(Err)) {
   fn(raw: String) {
     let normalized = string.lowercase(raw)
@@ -114,12 +114,14 @@ fn enum_of_strings_ci(
 }
 
 pub fn cookbook_enum_ci_match_test() -> Nil {
-  let level_validator = enum_of_strings_ci(["debug", "info", "warn", "error"])
+  let level_validator =
+    enum_of_strings_ci(non_empty_list.new("debug", ["info", "warn", "error"]))
   assert level_validator("INFO") == Ok("info")
 }
 
 pub fn cookbook_enum_ci_no_match_test() -> Nil {
-  let level_validator = enum_of_strings_ci(["debug", "info", "warn", "error"])
+  let level_validator =
+    enum_of_strings_ci(non_empty_list.new("debug", ["info", "warn", "error"]))
   assert level_validator("trace")
     == Error(non_empty_list.single(NotAllowed("trace")))
 }
