@@ -171,7 +171,7 @@ pub fn all(validators: List(Validator(a, e))) -> Validator(a, e) {
 ///
 /// ```gleam
 /// let check =
-///   dataprep.one_of(["auto"], "not auto")
+///   dataprep.one_of(non_empty_list.single("auto"), "not auto")
 ///   |> dataprep.alt(dataprep.max_length(3, "too long"))
 /// check("auto")
 /// // -> Ok("auto")
@@ -420,19 +420,29 @@ pub fn not_empty(error: e) -> Validator(String, e) {
 }
 
 /// Creates a validator that rejects a string that is empty or holds only
-/// whitespace, as `string.trim` defines it.
+/// Unicode whitespace.
 ///
-/// The value is returned unchanged; it is not trimmed.
+/// Unicode whitespace is the White_Space set that `collapse_unicode_space`
+/// folds, so the no-break space U+00A0 and the ideographic space U+3000 count
+/// as blank. This is wider than `string.trim`, which keeps both. The value is
+/// returned unchanged; it is not trimmed.
 ///
 /// ## Examples
 ///
 /// ```gleam
-/// dataprep.not_blank("required")(" \t")
+/// dataprep.not_blank("required")(" \t\u{3000}")
 /// // -> Error(NonEmptyList("required", []))
 /// ```
 ///
 pub fn not_blank(error: e) -> Validator(String, e) {
-  predicate(fn(text) { string.trim(text) != "" }, otherwise: error)
+  predicate(
+    fn(text) {
+      !list.all(string.to_utf_codepoints(text), fn(codepoint) {
+        is_unicode_whitespace(string.utf_codepoint_to_int(codepoint))
+      })
+    },
+    otherwise: error,
+  )
 }
 
 /// Creates a validator that rejects a string with fewer than `minimum`
@@ -539,25 +549,20 @@ pub fn max_float(maximum max: Float, error error: e) -> Validator(Float, e) {
 
 /// Creates a validator that rejects a value not in `allowed`.
 ///
-/// ## Panics
-///
-/// Panics when `allowed` is empty.
-///
 /// ## Examples
 ///
 /// ```gleam
-/// dataprep.one_of(["red", "green"], "unknown colour")("blue")
+/// let colours = non_empty_list.new("red", ["green"])
+/// dataprep.one_of(colours, "unknown colour")("blue")
 /// // -> Error(NonEmptyList("unknown colour", []))
 /// ```
 ///
-pub fn one_of(allowed allowed: List(a), error error: e) -> Validator(a, e) {
-  case allowed {
-    [] ->
-      // nolint: avoid_panic -- empty allowlist is a programmer error; an always-fail validator would silently reject every input
-      panic as "dataprep.one_of: allowed list must be non-empty"
-    [_, ..] ->
-      predicate(fn(value) { list.contains(allowed, value) }, otherwise: error)
-  }
+pub fn one_of(
+  allowed allowed: NonEmptyList(a),
+  error error: e,
+) -> Validator(a, e) {
+  let allowed = non_empty_list.to_list(allowed)
+  predicate(fn(value) { list.contains(allowed, value) }, otherwise: error)
 }
 
 /// Creates a validator that rejects a string in which `pattern` matches
@@ -566,6 +571,8 @@ pub fn one_of(allowed allowed: List(a), error error: e) -> Validator(a, e) {
 /// A match anywhere in the string is enough, so `[0-9]+` accepts `"a1"`. Use
 /// `full_match` to require the whole string to match. Erlang's `$` also
 /// matches before a final newline, so `^...$` is not a full match there.
+/// Classes such as `\d` and `\w` match non-ASCII digits and letters on Erlang
+/// but only ASCII on JavaScript.
 ///
 /// ## Examples
 ///
@@ -587,9 +594,14 @@ pub fn matches(pattern re: Regexp, error error: e) -> Validator(String, e) {
 /// rejects `"foo\n"`.
 ///
 /// Returns the compile error when `pattern` is not a valid regular
-/// expression. Verbs that must come first in a PCRE pattern, such as
-/// `(*UTF)`, are not supported: such a pattern returns an error with
-/// `byte_index` 0.
+/// expression on the target. Erlang's PCRE accepts more than JavaScript does,
+/// such as `(*UTF)`, `\Q...\E` and `(?x)` with `#` comments, and those
+/// patterns work here too. Whole-pattern recursion `(?R)` and `(*ACCEPT)` see
+/// the anchors that make the match full, so `"a(?R)?b"` accepts only `"ab"`.
+///
+/// The pattern is passed to the target's engine as it is, so classes such as
+/// `\d` and `\w` match non-ASCII digits and letters on Erlang but only ASCII
+/// on JavaScript.
 ///
 /// ## Examples
 ///
@@ -608,17 +620,89 @@ pub fn full_match(
   // The pattern is compiled on its own first, so a pattern such as "a)|(b"
   // cannot close the wrapper group below and slip through.
   use _ <- result.try(regexp.from_string(pattern))
+  // PCRE accepts verbs such as `(*UTF)` only at the very start, so they stay
+  // in front of the anchor.
+  let #(verbs, body) = split_leading_verbs(pattern, "")
+  // A `\Q` quote left open would swallow the wrapper, so it is closed.
+  let close_quote = case
+    body
+    |> string.to_utf_codepoints
+    |> list.map(string.utf_codepoint_to_int)
+    |> ends_inside_quote(quoted: False)
+  {
+    True -> "\\E"
+    False -> ""
+  }
+  // In extended mode a `#` comment runs to the next line break and would
+  // swallow the wrapper. `[\r\n]{0}` holds a line break that ends such a
+  // comment and matches nothing; after a comment it is a literal `]` repeated
+  // zero times.
+  let wrapped =
+    verbs <> "^(?:" <> body <> close_quote <> "[\r\n]{0})(?![\\s\\S])"
   // `(?![\s\S])` holds only at the real end of the input on both targets;
   // Erlang's `$` also matches before a trailing newline.
   use anchored <- result.map(
-    regexp.from_string("^(?:" <> pattern <> ")(?![\\s\\S])")
-    |> result.map_error(fn(wrapped) {
-      // The pattern compiled alone but not inside the wrapper, so no byte of
-      // the caller's pattern can be blamed.
-      regexp.CompileError(error: wrapped.error, byte_index: 0)
+    regexp.from_string(wrapped)
+    |> result.map_error(fn(wrapped_error) {
+      // Point into the caller's pattern rather than the wrapped one.
+      regexp.CompileError(
+        error: wrapped_error.error,
+        byte_index: int.clamp(
+          wrapped_error.byte_index - string.byte_size("^(?:"),
+          min: 0,
+          max: string.byte_size(pattern),
+        ),
+      )
     }),
   )
   predicate(fn(text) { regexp.check(anchored, text) }, otherwise: error)
+}
+
+// Splits off the `(*NAME)` items at the start of a pattern that set options,
+// such as `(*UTF)`, `(*CR)` and `(*LIMIT_MATCH=10)`. Backtracking verbs such
+// as `(*FAIL)` are valid anywhere and stay in the body.
+fn split_leading_verbs(pattern: String, verbs: String) -> #(String, String) {
+  let split = case pattern {
+    "(*" <> rest -> string.split_once(rest, on: ")")
+    _ -> Error(Nil)
+  }
+  case split {
+    Ok(#(name, body)) ->
+      case is_start_verb(name) {
+        True -> split_leading_verbs(body, verbs <> "(*" <> name <> ")")
+        False -> #(verbs, pattern)
+      }
+    Error(Nil) -> #(verbs, pattern)
+  }
+}
+
+fn is_start_verb(name: String) -> Bool {
+  let backtracking = ["ACCEPT", "FAIL", "F", "COMMIT", "PRUNE", "SKIP", "THEN"]
+  name != ""
+  && !list.contains(backtracking, name)
+  && list.all(string.to_utf_codepoints(name), fn(codepoint) {
+    case string.utf_codepoint_to_int(codepoint) {
+      // A-Z, 0-9, `_` and `=`.
+      code if code >= 0x41 && code <= 0x5A -> True
+      code if code >= 0x30 && code <= 0x39 -> True
+      0x5F | 0x3D -> True
+      _ -> False
+    }
+  })
+}
+
+// Whether a `\Q` quote is still open at the end of the pattern, read as a
+// list of codepoints. Inside a quote only `\E` is special; outside it a
+// backslash escapes the next character.
+fn ends_inside_quote(codepoints: List(Int), quoted quoted: Bool) -> Bool {
+  case codepoints, quoted {
+    [], _ -> quoted
+    [0x5C, 0x45, ..rest], True -> ends_inside_quote(rest, quoted: False)
+    [_, ..rest], True -> ends_inside_quote(rest, quoted: True)
+    [0x5C, 0x51, ..rest], False -> ends_inside_quote(rest, quoted: True)
+    [0x5C, _, ..rest], False | [_, ..rest], False ->
+      ends_inside_quote(rest, quoted: False)
+  }
 }
 
 // Parsing and normalising ---------------------------------------------------

@@ -126,24 +126,38 @@ pub fn max_int_exact_boundary_test() -> Nil {
 // --- one_of ---
 
 pub fn one_of_pass_test() -> Nil {
-  assert dataprep.one_of(allowed: ["a", "b", "c"], error: NotAllowed)("a")
+  assert dataprep.one_of(
+      allowed: non_empty_list.new("a", ["b", "c"]),
+      error: NotAllowed,
+    )("a")
     == Ok("a")
 }
 
 pub fn one_of_fail_test() -> Nil {
-  assert dataprep.one_of(allowed: ["a", "b", "c"], error: NotAllowed)("d")
+  assert dataprep.one_of(
+      allowed: non_empty_list.new("a", ["b", "c"]),
+      error: NotAllowed,
+    )("d")
     == Error(non_empty_list.single(NotAllowed))
 }
 
-// `dataprep.one_of(allowed: [], ...)` panics at construction time.
-// Capturing the panic from Gleam would require an FFI shim per
-// target, so the panic path is left out of the test suite.
+pub fn one_of_single_value_test() -> Nil {
+  let check =
+    dataprep.one_of(allowed: non_empty_list.single(1), error: NotAllowed)
+  assert check(1) == Ok(1)
+  assert check(2) == Error(non_empty_list.single(NotAllowed))
+}
 
 pub fn one_of_int_test() -> Nil {
-  assert dataprep.one_of(allowed: [1, 2, 3], error: NotAllowed)(1) == Ok(1)
-  assert result.is_error(dataprep.one_of(allowed: [1, 2, 3], error: NotAllowed)(
-    4,
-  ))
+  assert dataprep.one_of(
+      allowed: non_empty_list.new(1, [2, 3]),
+      error: NotAllowed,
+    )(1)
+    == Ok(1)
+  assert result.is_error(dataprep.one_of(
+    allowed: non_empty_list.new(1, [2, 3]),
+    error: NotAllowed,
+  )(4))
 }
 
 // --- rules combined with validator combinators ---

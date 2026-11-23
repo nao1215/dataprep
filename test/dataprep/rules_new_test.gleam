@@ -53,6 +53,24 @@ pub fn not_blank_pass_with_content_test() -> Nil {
   assert dataprep.not_blank(IsBlank)("  hello  ") == Ok("  hello  ")
 }
 
+pub fn not_blank_rejects_unicode_whitespace_test() -> Nil {
+  // Python's str.isspace and JavaScript's String.prototype.trim treat
+  // these as whitespace, and so does collapse_unicode_space.
+  ["\u{3000}", "\u{A0}", "\u{2007}", "\u{1680}", "\u{205F}", " \u{3000}\t"]
+  |> list.each(fn(raw) {
+    assert #(raw, dataprep.not_blank(IsBlank)(raw))
+      == #(raw, Error(non_empty_list.single(IsBlank)))
+  })
+}
+
+pub fn not_blank_accepts_characters_outside_white_space_test() -> Nil {
+  // Direction marks and the byte order mark are not White_Space.
+  ["\u{200E}", "\u{200F}", "\u{FEFF}"]
+  |> list.each(fn(raw) {
+    assert #(raw, dataprep.not_blank(IsBlank)(raw)) == #(raw, Ok(raw))
+  })
+}
+
 // --- matches ---
 
 pub fn matches_pass_test() -> Nil {
@@ -259,22 +277,47 @@ pub fn full_match_rejects_trailing_newline_test() -> Nil {
   assert check("abc\n\n") == Error(non_empty_list.single(BadFormat))
 }
 
-pub fn full_match_rejects_pattern_left_open_at_end_test() -> Nil {
-  // PCRE compiles "\Qa" alone but then quotes the closing anchor too;
-  // JavaScript rejects `\Q` outright. Both must return an error, and
-  // the wrapped failure must not point past the caller's pattern.
-  assert case dataprep.full_match(pattern: "\\Qa", error: BadFormat) {
-    Error(regexp.CompileError(byte_index: 0, ..)) -> True
-    Error(regexp.CompileError(..)) | Ok(_) -> False
-  }
+// --- full_match compiles every pattern that compiles on its own ---
+//
+// Erlang's PCRE accepts constructs that used to break the anchoring
+// wrapper: verbs such as "(*UTF)" that must come first, a "\Q" quote
+// left open at the end, and a "#" comment in extended mode. JavaScript
+// rejects all of them on their own, so on that target both sides fail.
+
+pub fn full_match_compiles_whenever_the_pattern_compiles_test() -> Nil {
+  [
+    "(*UTF)a", "(*UCP)(*CR)a", "(*LIMIT_MATCH=100)a", "\\Qa.b", "a\\Q",
+    "(?x)a # comment", "a(?x)b # tail", "(*CR)(?x)a # c", "\\\\Q", "a|ab",
+  ]
+  |> list.each(fn(pattern) {
+    let alone = result.is_ok(regexp.from_string(pattern))
+    let full = result.is_ok(dataprep.full_match(pattern:, error: BadFormat))
+    assert #(pattern, full) == #(pattern, alone)
+  })
 }
 
-pub fn full_match_rejects_leading_verb_test() -> Nil {
-  // PCRE accepts "(*UTF)" only at the very start of a pattern, so it
-  // compiles alone on Erlang but not inside the wrapper group.
-  // JavaScript rejects it outright.
-  assert case dataprep.full_match(pattern: "(*UTF)a", error: BadFormat) {
-    Error(regexp.CompileError(byte_index: 0, ..)) -> True
-    Error(regexp.CompileError(..)) | Ok(_) -> False
-  }
+pub fn full_match_keeps_the_meaning_of_patterns_with_pcre_extras_test() -> Nil {
+  [
+    #("(*UTF)a", "a", True),
+    #("(*UTF)a", "aa", False),
+    #("\\Qa.b", "a.b", True),
+    #("\\Qa.b", "axb", False),
+    #("(?x)a # comment", "a", True),
+    #("(?x)a # comment", "a # comment", False),
+    #("a(?x)b # tail", "ab", True),
+    #("(*CR)(?x)a # c", "a", True),
+  ]
+  |> list.each(fn(example) {
+    let #(pattern, input, expected) = example
+    case dataprep.full_match(pattern:, error: BadFormat) {
+      // JavaScript rejects these patterns on their own, with the same error.
+      Error(error) -> {
+        assert Error(error) == regexp.from_string(pattern)
+      }
+      Ok(check) -> {
+        assert #(pattern, input, result.is_ok(check(input)))
+          == #(pattern, input, expected)
+      }
+    }
+  })
 }
