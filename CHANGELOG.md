@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.27.0] - 2026-11-23
+
 ### Changed
 
 - Breaking: `one_of` takes the allowed values as a `NonEmptyList(a)` instead of a `List(a)`, so an empty allowlist is a type error instead of a panic. Replace `dataprep.one_of(["red", "green"], error)` with `dataprep.one_of(non_empty_list.new("red", ["green"]), error)`.
