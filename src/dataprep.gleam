@@ -634,12 +634,18 @@ pub fn full_match(
     False -> ""
   }
   // In extended mode a `#` comment runs to the next newline and would
-  // swallow the wrapper. `[\u{0}\r\n]{0}` holds the newline of every
-  // convention (`(*NUL)`, `(*CR)`, `(*LF)` and the others) and matches
-  // nothing. After a comment ends, what is left of it is whitespace, which
-  // extended mode ignores, and a literal `]` repeated zero times.
+  // swallow the wrapper. `[\r\n]{0}` holds the newline of every convention
+  // but `(*NUL)`, which gets a NUL as well, and matches nothing. After a
+  // comment ends, what is left of it is whitespace, which extended mode
+  // ignores, and a literal `]` repeated zero times. The NUL is added only
+  // for `(*NUL)`: PCRE before OTP 28 ends the pattern at a NUL, and it has
+  // no `(*NUL)` either.
+  let newlines = case string.contains(verbs, "(*NUL)") {
+    True -> "[\u{0}\r\n]{0}"
+    False -> "[\r\n]{0}"
+  }
   let wrapped =
-    verbs <> "^(?:" <> body <> close_quote <> "[\u{0}\r\n]{0})(?![\\s\\S])"
+    verbs <> "^(?:" <> body <> close_quote <> newlines <> ")(?![\\s\\S])"
   // `(?![\s\S])` holds only at the real end of the input on both targets;
   // Erlang's `$` also matches before a trailing newline.
   use anchored <- result.map(
