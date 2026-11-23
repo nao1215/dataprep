@@ -633,12 +633,13 @@ pub fn full_match(
     True -> "\\E"
     False -> ""
   }
-  // In extended mode a `#` comment runs to the next line break and would
-  // swallow the wrapper. `[\r\n]{0}` holds a line break that ends such a
-  // comment and matches nothing; after a comment it is a literal `]` repeated
-  // zero times.
+  // In extended mode a `#` comment runs to the next newline and would
+  // swallow the wrapper. `[\u{0}\r\n]{0}` holds the newline of every
+  // convention (`(*NUL)`, `(*CR)`, `(*LF)` and the others) and matches
+  // nothing. After a comment ends, what is left of it is whitespace, which
+  // extended mode ignores, and a literal `]` repeated zero times.
   let wrapped =
-    verbs <> "^(?:" <> body <> close_quote <> "[\r\n]{0})(?![\\s\\S])"
+    verbs <> "^(?:" <> body <> close_quote <> "[\u{0}\r\n]{0})(?![\\s\\S])"
   // `(?![\s\S])` holds only at the real end of the input on both targets;
   // Erlang's `$` also matches before a trailing newline.
   use anchored <- result.map(

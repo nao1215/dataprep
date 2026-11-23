@@ -287,7 +287,8 @@ pub fn full_match_rejects_trailing_newline_test() -> Nil {
 pub fn full_match_compiles_whenever_the_pattern_compiles_test() -> Nil {
   [
     "(*UTF)a", "(*UCP)(*CR)a", "(*LIMIT_MATCH=100)a", "\\Qa.b", "a\\Q",
-    "(?x)a # comment", "a(?x)b # tail", "(*CR)(?x)a # c", "\\\\Q", "a|ab",
+    "(?x)a # comment", "a(?x)b # tail", "(*CR)(?x)a # c", "(*NUL)(?x)a # c",
+    "(*CRLF)(?x)a # c", "(*ANY)(?x)a # c", "\\\\Q", "a|ab",
   ]
   |> list.each(fn(pattern) {
     let alone = result.is_ok(regexp.from_string(pattern))
@@ -306,6 +307,9 @@ pub fn full_match_keeps_the_meaning_of_patterns_with_pcre_extras_test() -> Nil {
     #("(?x)a # comment", "a # comment", False),
     #("a(?x)b # tail", "ab", True),
     #("(*CR)(?x)a # c", "a", True),
+    #("(*NUL)(?x)a # c", "a", True),
+    #("(*LF)(?x)a # c", "a", True),
+    #("(*CRLF)(?x)a # c", "a", True),
   ]
   |> list.each(fn(example) {
     let #(pattern, input, expected) = example
