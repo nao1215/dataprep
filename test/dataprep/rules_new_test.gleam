@@ -363,6 +363,16 @@ pub fn full_match_keeps_the_meaning_of_patterns_with_pcre_extras_test() -> Nil {
     #("a(?R)?(*ACCEPT)b", "aa", True),
     #("a(?R)?(*ACCEPT)b", "aab", False),
     #("a(?=b(*ACCEPT))b", "ab", True),
+    #("(a(*ACCEPT))b", "a", True),
+    #("(a(*ACCEPT))b", "ab", False),
+    #("(?=a(*ACCEPT))ab", "ab", True),
+    #("(*pla:a(*ACCEPT))ab", "ab", True),
+    #("(*atomic:a(*ACCEPT))b", "a", True),
+    #("(*atomic:a(*ACCEPT))b", "ab", False),
+    // A lowercase name opens a group, which stays after the anchor; a verb
+    // with digits in its value stays in front of it.
+    #("(*atomic:a)b", "ab", True),
+    #("(*LIMIT_MATCH=9)a", "a", True),
     // Items inside a class, a quote or a comment are text.
     #("[(?R)]+", "(?R)", True),
     #("[(?R)]+", "ab", False),

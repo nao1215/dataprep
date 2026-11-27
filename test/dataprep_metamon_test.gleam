@@ -1,8 +1,8 @@
 import dataprep
 import gleam/list
+import gleam/result
 import metamon
 import metamon/generator
-import metamon/generator/range
 import non_empty_list.{type NonEmptyList}
 
 // ---------- Normalising ----------
@@ -14,8 +14,11 @@ pub fn collapse_space_is_idempotent_test() -> Nil {
       of: dataprep.collapse_space,
     )
   metamon.forall_morph(
-    generator.string_ascii(range.constant(0, 16)),
-    mr,
+    generator.string(
+      of: generator.Ascii,
+      length: generator.range(from: 0, to: 16),
+    ),
+    [mr],
     dataprep.collapse_space,
   )
 }
@@ -27,17 +30,17 @@ pub fn collapse_unicode_space_is_idempotent_test() -> Nil {
       of: dataprep.collapse_unicode_space,
     )
   metamon.forall_morph(
-    generator.string(
-      generator.one_of([
-        generator.ascii_printable(),
+    generator.string_from(
+      characters: generator.one_of([
+        generator.character(of: generator.PrintableAscii),
         generator.element_of([
           "\u{0085}", "\u{00A0}", "\u{2003}", "\u{2028}", "\u{3000}", "\u{FEFF}",
           "\t", " ",
         ]),
       ]),
-      range.constant(0, 16),
+      length: generator.range(from: 0, to: 16),
     ),
-    mr,
+    [mr],
     dataprep.collapse_unicode_space,
   )
 }
@@ -47,8 +50,14 @@ pub fn collapse_unicode_space_is_idempotent_test() -> Nil {
 pub fn map2_two_errors_concatenate_errors_test() -> Nil {
   metamon.forall(
     generator.tuple2(
-      generator.string_ascii(range.constant(1, 4)),
-      generator.string_ascii(range.constant(1, 4)),
+      generator.string(
+        of: generator.Ascii,
+        length: generator.range(from: 1, to: 4),
+      ),
+      generator.string(
+        of: generator.Ascii,
+        length: generator.range(from: 1, to: 4),
+      ),
     ),
     fn(pair) {
       let #(error_a, error_b) = pair
@@ -60,10 +69,8 @@ pub fn map2_two_errors_concatenate_errors_test() -> Nil {
         dataprep.map2(invalid_a, invalid_b, with: fn(left, right) {
           left + right
         })
-      case combined {
-        Error(errors) -> non_empty_list.to_list(errors) == [error_a, error_b]
-        Ok(_) -> False
-      }
+      assert result.map_error(combined, non_empty_list.to_list)
+        == Error([error_a, error_b])
     },
   )
 }
@@ -76,12 +83,12 @@ pub fn collect_empty_is_ok_empty_test() -> Nil {
 pub fn collect_preserves_all_ok_test() -> Nil {
   metamon.forall(
     generator.list_of(
-      generator.int(range.constant(-100, 100)),
-      range.constant(0, 6),
+      generator.int(generator.range(from: -100, to: 100)),
+      length: generator.range(from: 0, to: 6),
     ),
     fn(values) {
       let inputs: List(Result(Int, NonEmptyList(String))) = list.map(values, Ok)
-      dataprep.collect(inputs) == Ok(values)
+      assert dataprep.collect(inputs) == Ok(values)
     },
   )
 }
@@ -89,13 +96,13 @@ pub fn collect_preserves_all_ok_test() -> Nil {
 pub fn each_matches_map_then_collect_test() -> Nil {
   metamon.forall(
     generator.list_of(
-      generator.int(range.constant(-50, 50)),
-      range.constant(0, 4),
+      generator.int(generator.range(from: -50, to: 50)),
+      length: generator.range(from: 0, to: 4),
     ),
     fn(values) {
       let positive = dataprep.min_int(0, "negative")
-      dataprep.each(positive)(values)
-      == dataprep.collect(list.map(values, positive))
+      assert dataprep.each(positive)(values)
+        == dataprep.collect(list.map(values, positive))
     },
   )
 }
