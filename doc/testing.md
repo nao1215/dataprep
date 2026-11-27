@@ -17,3 +17,16 @@
 ## Nightly runs
 
 `.github/workflows/nightly-property.yml` runs the whole suite ten times with `METAMON_RUNS_MULTIPLIER=10`, each pass with a new seed. A failure report prints its seed, so the case can be replayed and kept as a regression test.
+
+## Mutation testing
+
+`gleam run -m metamon/mutation` changes one operator, `!` or boolean literal in `src/dataprep.gleam` at a time and runs `gleam test --target erlang` on each change. `.github/workflows/mutation.yml` mutates the module on every pull request that changes it and fails on a survivor that `doc/mutation/baseline.json` does not list; the weekly run does the same.
+
+The first run (2026-11-27) scored 61.2%. Tests were then added for `(*ACCEPT)` inside a group, a lookahead, `(*pla:` and `(*atomic:`, and for a start verb with a 9 in its value, and the score rose to 79.1%. The 14 survivors left change nothing on Erlang: the grammar check of `parse_float` (8), whose rejects `float.parse` and the integer path reject again; the `\Q` and recursion flags of `full_match` at their start values (2), which only add `\E` or an unused copy that PCRE ignores; the group-or-verb test of `(*name:` (2), because a verb keeps its own `)`; the upper bound `Z` of start verb names (1), since no start verb has a `Z`; and the error offset of a wrapped pattern that cannot fail when the pattern compiles on its own (1). Several of them change the result on JavaScript, which the tests check on that target.
+
+<!-- mutation:start -->
+| Module | Killed | Lived | Timed out | Score |
+|---|---:|---:|---:|---:|
+| `dataprep` | 53 | 14 | 0 | 79.1% |
+| all | 53 | 14 | 0 | 79.1% |
+<!-- mutation:end -->
