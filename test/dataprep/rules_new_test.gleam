@@ -2,6 +2,7 @@ import dataprep
 import gleam/list
 import gleam/regexp
 import gleam/result
+import gleam/string
 import non_empty_list
 
 type Err {
@@ -288,13 +289,47 @@ pub fn full_match_compiles_whenever_the_pattern_compiles_test() -> Nil {
   [
     "(*UTF)a", "(*UCP)(*CR)a", "(*LIMIT_MATCH=100)a", "\\Qa.b", "a\\Q",
     "(?x)a # comment", "a(?x)b # tail", "(*CR)(?x)a # c", "(*NUL)(?x)a # c",
-    "(*CRLF)(?x)a # c", "(*ANY)(?x)a # c", "\\\\Q", "a|ab",
+    "(*CRLF)(?x)a # c", "(*ANY)(?x)a # c", "\\\\Q", "a|ab", "a(?R)?b",
+    "a(*ACCEPT)b", "(?<x>a)(?R)?b", "(*UTF)a(?0)?b", "a(?R)?(?x) # c",
   ]
   |> list.each(fn(pattern) {
     let alone = result.is_ok(regexp.from_string(pattern))
     let full = result.is_ok(dataprep.full_match(pattern:, error: BadFormat))
     assert #(pattern, full) == #(pattern, alone)
   })
+}
+
+/// `a(?R)?b` on its own matches the strings of n `a`s followed by n `b`s.
+/// Every string of `a` and `b` up to 8 characters is checked.
+pub fn full_match_recursion_matches_balanced_strings_test() -> Nil {
+  case dataprep.full_match(pattern: "a(?R)?b", error: BadFormat) {
+    Error(error) -> {
+      assert Error(error) == regexp.from_string("a(?R)?b")
+    }
+    Ok(check) ->
+      strings_up_to(8)
+      |> list.each(fn(input) {
+        let half = string.length(input) / 2
+        let balanced =
+          half > 0
+          && input == string.repeat("a", half) <> string.repeat("b", half)
+        assert #(input, result.is_ok(check(input))) == #(input, balanced)
+      })
+  }
+}
+
+fn strings_up_to(length: Int) -> List(String) {
+  case length {
+    0 -> [""]
+    _ -> {
+      let shorter = strings_up_to(length - 1)
+      list.append(
+        [""],
+        list.flat_map(shorter, fn(text) { [text <> "a", text <> "b"] }),
+      )
+      |> list.unique
+    }
+  }
 }
 
 pub fn full_match_keeps_the_meaning_of_patterns_with_pcre_extras_test() -> Nil {
@@ -310,6 +345,29 @@ pub fn full_match_keeps_the_meaning_of_patterns_with_pcre_extras_test() -> Nil {
     #("(*NUL)(?x)a # c", "a", True),
     #("(*LF)(?x)a # c", "a", True),
     #("(*CRLF)(?x)a # c", "a", True),
+    // `(?R)` recurses into the pattern, not into the anchors around it.
+    #("a(?R)?b", "ab", True),
+    #("a(?R)?b", "aabb", True),
+    #("a(?R)?b", "aaabbb", True),
+    #("a(?R)?b", "aab", False),
+    #("a(?R)?b", "abab", False),
+    #("a(?0)?b", "aabb", True),
+    #("(?<x>a)(?R)?b", "aabb", True),
+    #("(*UTF)a(?R)?b", "aabb", True),
+    #("(?:a(?R)?b|c)", "aacbb", True),
+    // `(*ACCEPT)` ends the match where it is, which is a full match only at
+    // the end of the input.
+    #("a(*ACCEPT)b", "a", True),
+    #("a(*ACCEPT)b", "ab", False),
+    #("a(*ACCEPT)b", "axyz", False),
+    #("a(?R)?(*ACCEPT)b", "aa", True),
+    #("a(?R)?(*ACCEPT)b", "aab", False),
+    #("a(?=b(*ACCEPT))b", "ab", True),
+    // Items inside a class, a quote or a comment are text.
+    #("[(?R)]+", "(?R)", True),
+    #("[(?R)]+", "ab", False),
+    #("\\Q(?R)\\E", "(?R)", True),
+    #("a(?#(?R))b", "ab", True),
   ]
   |> list.each(fn(example) {
     let #(pattern, input, expected) = example
