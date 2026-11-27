@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- `full_match` gives patterns with `(?R)` or `(*ACCEPT)` the meaning they have on their own. `(?R)` and `(?0)` used to recurse into the anchors as well, so `"a(?R)?b"` rejected `"aabb"`, and `(*ACCEPT)` ended the match before the end was checked, so `"a(*ACCEPT)b"` accepted any string starting with `a`. Both only compile on Erlang.
+
 ## [0.27.0] - 2026-11-23
 
 ### Changed

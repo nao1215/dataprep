@@ -596,8 +596,10 @@ pub fn matches(pattern re: Regexp, error error: e) -> Validator(String, e) {
 /// Returns the compile error when `pattern` is not a valid regular
 /// expression on the target. Erlang's PCRE accepts more than JavaScript does,
 /// such as `(*UTF)`, `\Q...\E` and `(?x)` with `#` comments, and those
-/// patterns work here too. Whole-pattern recursion `(?R)` and `(*ACCEPT)` see
-/// the anchors that make the match full, so `"a(?R)?b"` accepts only `"ab"`.
+/// patterns work here too. Whole-pattern recursion `(?R)` recurses into the
+/// pattern without the anchors, so `"a(?R)?b"` accepts `"ab"` and `"aabb"`,
+/// and `(*ACCEPT)` outside a recursion or a lookaround ends the match only at
+/// the end of the string, so `"a(*ACCEPT)b"` accepts `"a"` but not `"ab"`.
 ///
 /// The pattern is passed to the target's engine as it is, so classes such as
 /// `\d` and `\w` match non-ASCII digits and letters on Erlang but only ASCII
@@ -644,8 +646,21 @@ pub fn full_match(
     True -> "[\u{0}\r\n]{0}"
     False -> "[\r\n]{0}"
   }
-  let wrapped =
-    verbs <> "^(?:" <> body <> close_quote <> newlines <> ")(?![\\s\\S])"
+  let #(body, recursion) = rewrite_whole_pattern_items(body)
+  let body = body <> close_quote <> newlines
+  // `(?R)` would recurse into the anchors as well, so it calls a copy of the
+  // pattern defined after them. A subroutine call cannot replace the pattern
+  // itself: PCRE before OTP 28 does not backtrack into one, and `"a|ab"`
+  // would then reject `"ab"`. The copy repeats the pattern's named groups,
+  // so `(?J)` allows duplicate names.
+  let #(prefix, copy) = case recursion {
+    True -> #(
+      "(?J)^(?:",
+      "(?(DEFINE)(?<" <> whole_pattern_group <> ">" <> body <> "))",
+    )
+    False -> #("^(?:", "")
+  }
+  let wrapped = verbs <> prefix <> body <> ")(?![\\s\\S])" <> copy
   // `(?![\s\S])` holds only at the real end of the input on both targets;
   // Erlang's `$` also matches before a trailing newline.
   use anchored <- result.map(
@@ -655,7 +670,7 @@ pub fn full_match(
       regexp.CompileError(
         error: wrapped_error.error,
         byte_index: int.clamp(
-          wrapped_error.byte_index - string.byte_size("^(?:"),
+          wrapped_error.byte_index - string.byte_size(prefix),
           min: 0,
           max: string.byte_size(pattern),
         ),
@@ -663,6 +678,200 @@ pub fn full_match(
     }),
   )
   predicate(fn(text) { regexp.check(anchored, text) }, otherwise: error)
+}
+
+const whole_pattern_group: String = "dataprep_whole_pattern"
+
+// Rewrites the items whose meaning depends on the whole pattern, and reports
+// whether the pattern recurses into itself. `(?R)` and `(?0)` become calls to
+// the copy of the pattern. `(*ACCEPT)` outside a lookaround keeps its meaning
+// inside a recursion and, at the top level, succeeds only at the end of the
+// input, where the full match would have ended. Escapes, `\Q...\E` quotes,
+// character classes and `(?#...)` comments are copied unchanged. A `#`
+// comment in extended mode is read as pattern text: an item in it is
+// rewritten into another comment, and a bracket in it can hide a later item
+// from the rewrite, which then keeps the meaning it had before.
+fn rewrite_whole_pattern_items(pattern: String) -> #(String, Bool) {
+  rewrite_loop(
+    pattern,
+    Rewrite(done: string_tree.new(), lookarounds: [], recursion: False),
+  )
+}
+
+// The text rewritten so far, whether each open group is a lookaround,
+// innermost first, and whether the pattern recurses into itself.
+type Rewrite {
+  Rewrite(
+    done: string_tree.StringTree,
+    lookarounds: List(Bool),
+    recursion: Bool,
+  )
+}
+
+fn emit(state: Rewrite, text: String) -> Rewrite {
+  Rewrite(..state, done: string_tree.append(state.done, text))
+}
+
+fn open_group(state: Rewrite, text: String) -> Rewrite {
+  Rewrite(..emit(state, text), lookarounds: [False, ..state.lookarounds])
+}
+
+fn open_lookaround(state: Rewrite, text: String) -> Rewrite {
+  Rewrite(..emit(state, text), lookarounds: [True, ..state.lookarounds])
+}
+
+fn rewrite_loop(pattern: String, state: Rewrite) -> #(String, Bool) {
+  case pattern {
+    "" -> #(string_tree.to_string(state.done), state.recursion)
+    "\\Q" <> rest -> {
+      let #(quoted, rest) = take_through(rest, "\\E")
+      rewrite_loop(rest, emit(state, "\\Q" <> quoted))
+    }
+    "\\" <> rest ->
+      case string.pop_grapheme(rest) {
+        Ok(#(escaped, rest)) -> rewrite_loop(rest, emit(state, "\\" <> escaped))
+        Error(Nil) -> rewrite_loop("", emit(state, "\\"))
+      }
+    "[" <> rest -> {
+      let #(class, rest) = take_class(rest)
+      rewrite_loop(rest, emit(state, "[" <> class))
+    }
+    "(?#" <> rest -> {
+      let #(comment, rest) = take_through(rest, ")")
+      rewrite_loop(rest, emit(state, "(?#" <> comment))
+    }
+    "(?R)" <> rest | "(?0)" <> rest ->
+      rewrite_loop(
+        rest,
+        Rewrite(
+          ..emit(state, "(?&" <> whole_pattern_group <> ")"),
+          recursion: True,
+        ),
+      )
+    "(*ACCEPT" <> rest -> {
+      let #(verb, rest) = take_through(rest, ")")
+      let verb = "(*ACCEPT" <> verb
+      case list.contains(state.lookarounds, True) {
+        // In a lookaround it only ends the assertion.
+        True -> rewrite_loop(rest, emit(state, verb))
+        False ->
+          rewrite_loop(
+            rest,
+            emit(state, "(?(R)" <> verb <> "|(?![\\s\\S])" <> verb <> ")"),
+          )
+      }
+    }
+    "(?=" <> rest -> rewrite_loop(rest, open_lookaround(state, "(?="))
+    "(?!" <> rest -> rewrite_loop(rest, open_lookaround(state, "(?!"))
+    "(?<=" <> rest -> rewrite_loop(rest, open_lookaround(state, "(?<="))
+    "(?<!" <> rest -> rewrite_loop(rest, open_lookaround(state, "(?<!"))
+    "(*" <> rest -> rewrite_star_item(rest, state)
+    "(" <> rest -> rewrite_loop(rest, open_group(state, "("))
+    ")" <> rest ->
+      rewrite_loop(
+        rest,
+        Rewrite(
+          ..emit(state, ")"),
+          lookarounds: list.drop(state.lookarounds, 1),
+        ),
+      )
+    _ ->
+      case string.pop_grapheme(pattern) {
+        Ok(#(first, rest)) -> rewrite_loop(rest, emit(state, first))
+        Error(Nil) -> rewrite_loop("", state)
+      }
+  }
+}
+
+// After `(*`: a lowercase name with a colon opens a group, such as `(*pla:`
+// or `(*atomic:`. Anything else is a verb such as `(*MARK:x)`, which is not a
+// group.
+fn rewrite_star_item(rest: String, state: Rewrite) -> #(String, Bool) {
+  let group = case string.split_once(rest, on: ":") {
+    Ok(#(name, after)) ->
+      case
+        name != ""
+        && string.lowercase(name) == name
+        && !string.contains(name, ")")
+      {
+        True -> Ok(#(name, after))
+        False -> Error(Nil)
+      }
+    Error(Nil) -> Error(Nil)
+  }
+  case group {
+    Ok(#(name, after)) -> {
+      let opener = "(*" <> name <> ":"
+      let state = case list.contains(lookaround_names, name) {
+        True -> open_lookaround(state, opener)
+        False -> open_group(state, opener)
+      }
+      rewrite_loop(after, state)
+    }
+    Error(Nil) -> {
+      let #(verb, after) = take_through(rest, ")")
+      rewrite_loop(after, emit(state, "(*" <> verb))
+    }
+  }
+}
+
+const lookaround_names: List(String) = [
+  "pla", "plb", "nla", "nlb", "napla", "naplb", "positive_lookahead",
+  "positive_lookbehind", "negative_lookahead", "negative_lookbehind",
+  "non_atomic_positive_lookahead", "non_atomic_positive_lookbehind",
+]
+
+// The text up to and including the first `end`, and the rest. All of it when
+// `end` does not occur.
+fn take_through(text: String, end: String) -> #(String, String) {
+  case string.split_once(text, on: end) {
+    Ok(#(before, after)) -> #(before <> end, after)
+    Error(Nil) -> #(text, "")
+  }
+}
+
+// The rest of a character class after its `[`, through the `]` that closes
+// it: a `]` right after `[` or `[^` is a literal, a backslash escapes the next
+// character and `[:alpha:]` is a POSIX class.
+fn take_class(text: String) -> #(String, String) {
+  let #(start, rest) = case text {
+    "^]" <> rest -> #("^]", rest)
+    "]" <> rest -> #("]", rest)
+    "^" <> rest -> #("^", rest)
+    _ -> #("", text)
+  }
+  take_class_loop(rest, string_tree.from_string(start))
+}
+
+fn take_class_loop(
+  text: String,
+  done: string_tree.StringTree,
+) -> #(String, String) {
+  case text {
+    "" -> #(string_tree.to_string(done), "")
+    "]" <> rest -> #(string_tree.to_string(string_tree.append(done, "]")), rest)
+    "[:" <> rest ->
+      case string.split_once(rest, on: ":]") {
+        Ok(#(name, after)) ->
+          take_class_loop(after, string_tree.append(done, "[:" <> name <> ":]"))
+        Error(Nil) -> take_class_loop(rest, string_tree.append(done, "[:"))
+      }
+    "\\" <> rest ->
+      case string.pop_grapheme(rest) {
+        Ok(#(escaped, rest)) ->
+          take_class_loop(rest, string_tree.append(done, "\\" <> escaped))
+        Error(Nil) -> #(
+          string_tree.to_string(string_tree.append(done, "\\")),
+          "",
+        )
+      }
+    _ ->
+      case string.pop_grapheme(text) {
+        Ok(#(first, rest)) ->
+          take_class_loop(rest, string_tree.append(done, first))
+        Error(Nil) -> #(string_tree.to_string(done), "")
+      }
+  }
 }
 
 // Splits off the `(*NAME)` items at the start of a pattern that set options,
